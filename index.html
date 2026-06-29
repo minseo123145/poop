@@ -2,15 +2,13 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 #game-wrap { width: 100%; max-width: 480px; margin: 0 auto; font-family: var(--font-sans); user-select: none; -webkit-user-select: none; touch-action: none; }
-#canvas-wrap { position: relative; width: 100%; aspect-ratio: 3/4; border-radius: 12px; overflow: hidden; border: 0.5px solid var(--border); cursor: pointer; }
+#canvas-wrap { position: relative; width: 100%; aspect-ratio: 3/4; border-radius: 12px; overflow: hidden; border: 0.5px solid var(--border); }
 canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-#overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(0,0,0,0.5); border-radius: 12px; }
+#overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: rgba(0,0,0,0.52); border-radius: 12px; }
 #overlay h2 { color: #fff; font-size: 26px; font-weight: 500; }
-#overlay p { color: rgba(255,255,255,0.85); font-size: 14px; text-align: center; padding: 0 20px; line-height: 1.6; }
-.legend { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; padding: 0 16px; }
-.leg-item { background: rgba(255,255,255,0.15); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: #fff; text-align: center; }
+.legend { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; padding: 0 12px; }
+.leg-item { background: rgba(255,255,255,0.13); border-radius: 8px; padding: 6px 10px; font-size: 11px; color: #fff; text-align: center; line-height: 1.5; }
 #start-btn { background: #fff; color: #333; border: none; padding: 11px 30px; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; }
-#start-btn:hover { background: #f0f0f0; }
 #hud { display: flex; justify-content: space-between; align-items: center; padding: 10px 4px 6px; }
 #hud span { font-size: 13px; color: var(--text-secondary); }
 #hud strong { font-size: 15px; color: var(--text-primary); font-weight: 500; }
@@ -28,15 +26,17 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; }
     <div id="overlay">
       <h2>💩 똥 피하기</h2>
       <div class="legend">
-        <div class="leg-item">💩 일반똥<br><small>그냥 피해요</small></div>
-        <div class="leg-item">👑 대왕똥<br><small>크고 느려요</small></div>
-        <div class="leg-item">↔️ 지그재그똥<br><small>좌우로 움직여요</small></div>
+        <div class="leg-item">💩 일반똥<br><small>피하세요</small></div>
+        <div class="leg-item">👑 대왕똥<br><small>크고 위험</small></div>
+        <div class="leg-item">↔️ 지그재그<br><small>좌우 이동</small></div>
+        <div class="leg-item">✨ 황금똥<br><small>먹으면 +100점</small></div>
+        <div class="leg-item">💎 다이아똥<br><small>무적+체력회복</small></div>
       </div>
-      <p>화면을 <strong style="color:#FFD93D">드래그</strong>하거나 <strong style="color:#FFD93D">터치</strong>해서 캐릭터 이동<br>키보드 방향키도 사용 가능</p>
+      <p style="font-size:13px;color:rgba(255,255,255,0.8);text-align:center;padding:0 16px">화면 드래그 또는 키보드 방향키로 이동</p>
       <button id="start-btn">게임 시작</button>
     </div>
   </div>
-  <div id="msg">화면 드래그 또는 방향키로 조작 · 특수 똥을 조심하세요!</div>
+  <div id="msg">황금똥·다이아똥은 먹으면 좋아요! ✨💎</div>
 </div>
 
 <script>
@@ -58,18 +58,18 @@ resize();
 
 let state = 'idle';
 let score, best = 0, lives, frame, rafId;
-let player, poops, stars, particles, speed, spawnTimer, spawnInterval;
+let player, poops, particles, floatTexts, stars, speed, spawnTimer, spawnInterval;
 let keys = { left: false, right: false };
 let touchX = null, touchActive = false;
 
-const PLAYER_W = () => 44 * scale;
-const PLAYER_H = () => 52 * scale;
+const PW = () => 44 * scale;
+const PH = () => 52 * scale;
 const GROUND = () => H * 0.88;
 
 function initGame() {
   score = 0; lives = 3; speed = 2.2; spawnTimer = 0; spawnInterval = 85; frame = 0;
-  player = { x: W / 2, y: GROUND() - PLAYER_H() / 2, invincible: 0 };
-  poops = []; particles = [];
+  player = { x: W / 2, y: GROUND() - PH() / 2, invincible: 0, shield: 0 };
+  poops = []; particles = []; floatTexts = [];
   stars = Array.from({length: 20}, () => ({
     x: Math.random() * W, y: Math.random() * H * 0.55,
     r: Math.random() * 1.8 + 0.5, a: Math.random()
@@ -80,69 +80,71 @@ function initGame() {
 function updateHUD() {
   scoreDisp.textContent = Math.floor(score);
   bestDisp.textContent = Math.floor(best);
-  livesDisp.textContent = '❤️'.repeat(lives);
+  const full = Math.min(lives, 3);
+  livesDisp.textContent = '❤️'.repeat(full);
 }
 
-// Poop types: 'normal' | 'king' | 'zigzag'
 function spawnPoop() {
   const rand = Math.random();
-  let type = 'normal';
-  if (rand < 0.12) type = 'king';
-  else if (rand < 0.30) type = 'zigzag';
+  let type;
+  if (rand < 0.08) type = 'king';
+  else if (rand < 0.22) type = 'zigzag';
+  else if (rand < 0.33) type = 'gold';
+  else if (rand < 0.41) type = 'diamond';
+  else type = 'normal';
 
   const x = 60 * scale + Math.random() * (W - 120 * scale);
   const baseVy = (speed + Math.random() * 1.2) * scale;
-
-  const p = { type, x, y: -80 * scale, angle: 0, wobble: Math.random() * Math.PI * 2 };
+  const p = { type, x, y: -80 * scale, angle: 0, wobble: Math.random() * Math.PI * 2, spin: 0, vx: 0, vy: baseVy, size: 1 };
 
   if (type === 'normal') {
-    p.vy = baseVy;
     p.spin = (Math.random() - 0.5) * 0.12;
     p.size = 0.85 + Math.random() * 0.3;
-    p.vx = 0;
   } else if (type === 'king') {
     p.vy = baseVy * 0.65;
     p.spin = (Math.random() - 0.5) * 0.05;
     p.size = 1.8 + Math.random() * 0.4;
-    p.vx = 0;
-    p.crown = true;
-  } else { // zigzag
+  } else if (type === 'zigzag') {
     p.vy = baseVy * 0.9;
-    p.spin = 0;
     p.size = 0.9 + Math.random() * 0.2;
     p.vx = (1.8 + Math.random() * 1.5) * scale;
     p.zigDir = Math.random() < 0.5 ? 1 : -1;
     p.zigTimer = 0;
     p.zigInterval = 38 + Math.floor(Math.random() * 25);
+  } else if (type === 'gold') {
+    p.vy = baseVy * 0.75;
+    p.size = 1.0 + Math.random() * 0.2;
+    p.spin = 0.04 + Math.random() * 0.04;
+    p.shimmer = 0;
+  } else if (type === 'diamond') {
+    p.vy = baseVy * 0.7;
+    p.size = 1.0 + Math.random() * 0.2;
+    p.spin = -0.03 - Math.random() * 0.03;
+    p.shimmer = 0;
   }
   poops.push(p);
 }
 
+// ---- DRAW HELPERS ----
 function drawSky() {
-  ctx.fillStyle = '#5ba3d9';
-  ctx.fillRect(0, 0, W, H * 0.6);
-  ctx.fillStyle = '#a8d8f0';
-  ctx.fillRect(0, H * 0.35, W, H * 0.25);
-  ctx.fillStyle = '#7ec850';
-  ctx.fillRect(0, H * 0.6, W, H * 0.4);
-  ctx.fillStyle = '#6bbf42';
-  ctx.fillRect(0, GROUND() - 4 * scale, W, 8 * scale);
+  ctx.fillStyle = '#5ba3d9'; ctx.fillRect(0, 0, W, H * 0.6);
+  ctx.fillStyle = '#a8d8f0'; ctx.fillRect(0, H * 0.35, W, H * 0.25);
+  ctx.fillStyle = '#7ec850'; ctx.fillRect(0, H * 0.6, W, H * 0.4);
+  ctx.fillStyle = '#6bbf42'; ctx.fillRect(0, GROUND() - 4*scale, W, 8*scale);
 }
-
 function drawStars() {
   stars.forEach(s => {
     ctx.globalAlpha = 0.4 + 0.4 * Math.sin(frame * 0.03 + s.a);
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(s.x, s.y, s.r * scale, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r*scale, 0, Math.PI*2); ctx.fill();
   });
   ctx.globalAlpha = 1;
 }
-
 function drawClouds() {
   ctx.fillStyle = 'rgba(255,255,255,0.82)';
   [{x:80,y:60,s:1},{x:270,y:38,s:0.85},{x:410,y:78,s:1.1}].forEach(c => {
-    const ox = ((c.x + frame * 0.18) % (W / scale + 80)) * scale - 40 * scale;
-    const oy = c.y * scale, ss = c.s * scale;
+    const ox = ((c.x + frame * 0.18) % (W/scale + 80)) * scale - 40*scale;
+    const oy = c.y*scale, ss = c.s*scale;
     ctx.beginPath();
     ctx.ellipse(ox, oy, 38*ss, 17*ss, 0, 0, Math.PI*2);
     ctx.ellipse(ox-22*ss, oy+6*ss, 22*ss, 13*ss, 0, 0, Math.PI*2);
@@ -151,354 +153,408 @@ function drawClouds() {
   });
 }
 
-function drawPlayer(p) {
-  if (p.invincible > 0 && Math.floor(p.invincible / 4) % 2 === 0) return;
-  const x = p.x, y = p.y, w = PLAYER_W(), h = PLAYER_H();
-  ctx.save(); ctx.translate(x, y);
-
-  // body
-  ctx.fillStyle = '#FFD93D';
-  ctx.beginPath(); ctx.ellipse(0, 2*scale, w*0.38, h*0.32, 0, 0, Math.PI*2); ctx.fill();
-
-  // legs
-  ctx.fillStyle = '#4a90d9';
-  ctx.fillRect(-w*0.22, h*0.18, w*0.18, h*0.25);
-  ctx.fillRect(w*0.04, h*0.18, w*0.18, h*0.25);
-
-  // shoes
-  ctx.fillStyle = '#333';
-  ctx.beginPath(); ctx.ellipse(-w*0.13, h*0.44, w*0.15, h*0.08, 0, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(w*0.13, h*0.44, w*0.15, h*0.08, 0, 0, Math.PI*2); ctx.fill();
-
-  // head
-  ctx.fillStyle = '#FFD93D';
-  ctx.beginPath(); ctx.arc(0, -h*0.22, w*0.34, 0, Math.PI*2); ctx.fill();
-
-  // eyes
-  ctx.fillStyle = '#333';
-  ctx.beginPath(); ctx.arc(-w*0.10, -h*0.24, 2.5*scale, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(w*0.10, -h*0.24, 2.5*scale, 0, Math.PI*2); ctx.fill();
-
-  // smile
-  ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5*scale;
-  ctx.beginPath(); ctx.arc(0, -h*0.15, w*0.12, 0.2, Math.PI-0.2); ctx.stroke();
-
-  // arms
-  const sw = Math.sin(frame * 0.2) * 0.3;
-  ctx.strokeStyle = '#FFD93D'; ctx.lineWidth = 5*scale; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(-w*0.35, -h*0.02); ctx.lineTo(-w*0.55, h*0.10 + sw*10); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(w*0.35, -h*0.02); ctx.lineTo(w*0.55, h*0.10 - sw*10); ctx.stroke();
-
-  ctx.restore();
-}
-
-function drawPoopBody(s, layers) {
+function drawPoopLayers(s, layers, dark, light) {
   layers.forEach(l => {
-    ctx.fillStyle = '#7B4A00';
+    ctx.fillStyle = dark;
     ctx.beginPath(); ctx.ellipse(0, l.y, l.rx, l.ry, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#9B6310';
+    ctx.fillStyle = light;
     ctx.beginPath(); ctx.ellipse(-l.rx*0.2, l.y-l.ry*0.2, l.rx*0.35, l.ry*0.3, 0, 0, Math.PI*2); ctx.fill();
   });
 }
 
+const BASE_LAYERS = s => [
+  {y:s*0.4, rx:s*0.42, ry:s*0.28},
+  {y:s*0.12, rx:s*0.32, ry:s*0.25},
+  {y:-s*0.12, rx:s*0.22, ry:s*0.2},
+  {y:-s*0.3, rx:s*0.13, ry:s*0.14}
+];
+const KING_LAYERS = s => [
+  {y:s*0.4, rx:s*0.48, ry:s*0.3},
+  {y:s*0.12, rx:s*0.38, ry:s*0.28},
+  {y:-s*0.12, rx:s*0.28, ry:s*0.23},
+  {y:-s*0.32, rx:s*0.18, ry:s*0.17}
+];
+
 function drawNormalPoop(p) {
-  const s = 32 * scale * p.size;
+  const s = 32*scale*p.size;
   ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
   ctx.fillStyle = 'rgba(0,0,0,0.13)';
   ctx.beginPath(); ctx.ellipse(0, s*0.55, s*0.45, s*0.11, 0, 0, Math.PI*2); ctx.fill();
-  drawPoopBody(s, [
-    {y:s*0.4, rx:s*0.42, ry:s*0.28},
-    {y:s*0.12, rx:s*0.32, ry:s*0.25},
-    {y:-s*0.12, rx:s*0.22, ry:s*0.2},
-    {y:-s*0.3, rx:s*0.13, ry:s*0.14}
-  ]);
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(-s*0.10, -s*0.08, s*0.08, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(s*0.10, -s*0.08, s*0.08, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#333';
-  ctx.beginPath(); ctx.arc(-s*0.09, -s*0.07, s*0.04, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(s*0.11, -s*0.07, s*0.04, 0, Math.PI*2); ctx.fill();
+  drawPoopLayers(s, BASE_LAYERS(s), '#7B4A00', '#9B6310');
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-s*0.10,-s*0.08,s*0.08,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(s*0.10,-s*0.08,s*0.08,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-s*0.09,-s*0.07,s*0.04,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(s*0.11,-s*0.07,s*0.04,0,Math.PI*2); ctx.fill();
   ctx.restore();
 }
 
 function drawKingPoop(p) {
-  const s = 32 * scale * p.size;
+  const s = 32*scale*p.size;
   ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
-
-  // glow aura
-  ctx.globalAlpha = 0.18 + 0.08 * Math.sin(frame * 0.1);
-  ctx.fillStyle = '#FFD700';
-  ctx.beginPath(); ctx.arc(0, 0, s*0.75, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = 1;
-
-  // shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.beginPath(); ctx.ellipse(0, s*0.55, s*0.5, s*0.13, 0, 0, Math.PI*2); ctx.fill();
-
-  drawPoopBody(s, [
-    {y:s*0.4, rx:s*0.48, ry:s*0.3},
-    {y:s*0.12, rx:s*0.38, ry:s*0.28},
-    {y:-s*0.12, rx:s*0.28, ry:s*0.23},
-    {y:-s*0.32, rx:s*0.18, ry:s*0.17}
-  ]);
-
-  // angry eyes
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(-s*0.12, -s*0.09, s*0.10, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(s*0.12, -s*0.09, s*0.10, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#c0392b';
-  ctx.beginPath(); ctx.arc(-s*0.11, -s*0.08, s*0.055, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(s*0.13, -s*0.08, s*0.055, 0, Math.PI*2); ctx.fill();
-  // angry brows
-  ctx.strokeStyle = '#5a3500'; ctx.lineWidth = 2*scale; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(-s*0.20, -s*0.20); ctx.lineTo(-s*0.04, -s*0.16); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(s*0.20, -s*0.20); ctx.lineTo(s*0.04, -s*0.16); ctx.stroke();
-  // frown
-  ctx.beginPath(); ctx.arc(0, -s*0.02, s*0.10, 0.3, Math.PI-0.3, true); ctx.stroke();
-
-  // crown
-  const cy = -s*0.48;
-  ctx.fillStyle = '#FFD700';
-  ctx.beginPath();
-  ctx.moveTo(-s*0.28, cy);
-  ctx.lineTo(-s*0.28, cy - s*0.22);
-  ctx.lineTo(-s*0.14, cy - s*0.10);
-  ctx.lineTo(0, cy - s*0.26);
-  ctx.lineTo(s*0.14, cy - s*0.10);
-  ctx.lineTo(s*0.28, cy - s*0.22);
-  ctx.lineTo(s*0.28, cy);
-  ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = '#B8860B'; ctx.lineWidth = 1.5*scale; ctx.stroke();
-  // crown gems
-  [{x:-s*0.18, y:cy-s*0.05, c:'#e74c3c'},{x:0, y:cy-s*0.08, c:'#9b59b6'},{x:s*0.18, y:cy-s*0.05, c:'#2ecc71'}].forEach(g => {
-    ctx.fillStyle = g.c;
-    ctx.beginPath(); ctx.arc(g.x, g.y, s*0.04, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 0.18 + 0.08*Math.sin(frame*0.1);
+  ctx.fillStyle='#FFD700'; ctx.beginPath(); ctx.arc(0,0,s*0.75,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.fillStyle='rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(0,s*0.55,s*0.5,s*0.13,0,0,Math.PI*2); ctx.fill();
+  drawPoopLayers(s, KING_LAYERS(s), '#7B4A00', '#9B6310');
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-s*0.12,-s*0.09,s*0.10,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(s*0.12,-s*0.09,s*0.10,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#c0392b'; ctx.beginPath(); ctx.arc(-s*0.11,-s*0.08,s*0.055,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(s*0.13,-s*0.08,s*0.055,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#5a3500'; ctx.lineWidth=2*scale; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-s*0.20,-s*0.20); ctx.lineTo(-s*0.04,-s*0.16); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(s*0.20,-s*0.20); ctx.lineTo(s*0.04,-s*0.16); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,-s*0.02,s*0.10,0.3,Math.PI-0.3,true); ctx.stroke();
+  const cy=-s*0.48;
+  ctx.fillStyle='#FFD700';
+  ctx.beginPath(); ctx.moveTo(-s*0.28,cy); ctx.lineTo(-s*0.28,cy-s*0.22); ctx.lineTo(-s*0.14,cy-s*0.10); ctx.lineTo(0,cy-s*0.26); ctx.lineTo(s*0.14,cy-s*0.10); ctx.lineTo(s*0.28,cy-s*0.22); ctx.lineTo(s*0.28,cy); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='#B8860B'; ctx.lineWidth=1.5*scale; ctx.stroke();
+  [{x:-s*0.18,y:cy-s*0.05,c:'#e74c3c'},{x:0,y:cy-s*0.08,c:'#9b59b6'},{x:s*0.18,y:cy-s*0.05,c:'#2ecc71'}].forEach(g=>{
+    ctx.fillStyle=g.c; ctx.beginPath(); ctx.arc(g.x,g.y,s*0.04,0,Math.PI*2); ctx.fill();
   });
-
   ctx.restore();
 }
 
 function drawZigzagPoop(p) {
-  const s = 32 * scale * p.size;
+  const s = 32*scale*p.size;
   ctx.save(); ctx.translate(p.x, p.y);
+  ctx.globalAlpha=0.35; ctx.fillStyle='#3498db';
+  const ad=p.zigDir;
+  ctx.beginPath(); ctx.moveTo(ad*s*0.55,-s*0.1); ctx.lineTo(ad*s*0.85,-s*0.35); ctx.lineTo(ad*s*1.15,-s*0.1); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.strokeStyle='#2980b9'; ctx.lineWidth=2.5*scale;
+  ctx.beginPath(); ctx.arc(0,0,s*0.52,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle='rgba(0,0,0,0.13)'; ctx.beginPath(); ctx.ellipse(0,s*0.55,s*0.45,s*0.11,0,0,Math.PI*2); ctx.fill();
+  drawPoopLayers(s, BASE_LAYERS(s), '#7B4A00', '#9B6310');
+  ctx.strokeStyle='#1a6ba0'; ctx.lineWidth=1.8*scale;
+  [[-s*0.10,-s*0.08],[s*0.10,-s*0.08]].forEach(([ex,ey])=>{
+    ctx.beginPath(); ctx.moveTo(ex-s*0.06,ey-s*0.06); ctx.lineTo(ex+s*0.06,ey+s*0.06); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ex+s*0.06,ey-s*0.06); ctx.lineTo(ex-s*0.06,ey+s*0.06); ctx.stroke();
+  });
+  ctx.restore();
+}
 
-  // trail arrows showing direction
-  ctx.globalAlpha = 0.35;
-  ctx.fillStyle = '#3498db';
-  const arrowDir = p.zigDir;
-  ctx.beginPath();
-  ctx.moveTo(arrowDir * s * 0.55, -s*0.1);
-  ctx.lineTo(arrowDir * s * 0.85, -s*0.35);
-  ctx.lineTo(arrowDir * s * 1.15, -s*0.1);
-  ctx.closePath(); ctx.fill();
+function drawGoldPoop(p) {
+  const s = 32*scale*p.size;
+  p.shimmer = (p.shimmer + 0.07) % (Math.PI*2);
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
+
+  // outer glow
+  ctx.globalAlpha = 0.22 + 0.12*Math.sin(p.shimmer);
+  ctx.fillStyle = '#FFD700';
+  ctx.beginPath(); ctx.arc(0, 0, s*0.72, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = 1;
 
-  // blue tint border
-  ctx.strokeStyle = '#2980b9'; ctx.lineWidth = 2.5*scale;
-  ctx.beginPath(); ctx.arc(0, 0, s*0.52, 0, Math.PI*2); ctx.stroke();
+  ctx.fillStyle='rgba(0,0,0,0.12)'; ctx.beginPath(); ctx.ellipse(0,s*0.55,s*0.45,s*0.11,0,0,Math.PI*2); ctx.fill();
+  drawPoopLayers(s, BASE_LAYERS(s), '#B8860B', '#DAA520');
 
-  ctx.fillStyle = 'rgba(0,0,0,0.13)';
-  ctx.beginPath(); ctx.ellipse(0, s*0.55, s*0.45, s*0.11, 0, 0, Math.PI*2); ctx.fill();
-
-  drawPoopBody(s, [
-    {y:s*0.4, rx:s*0.42, ry:s*0.28},
-    {y:s*0.12, rx:s*0.32, ry:s*0.25},
-    {y:-s*0.12, rx:s*0.22, ry:s*0.2},
-    {y:-s*0.3, rx:s*0.13, ry:s*0.14}
-  ]);
-
-  // dizzy eyes
-  ctx.strokeStyle = '#1a6ba0'; ctx.lineWidth = 1.8*scale;
-  [[-s*0.10, -s*0.08],[s*0.10, -s*0.08]].forEach(([ex,ey]) => {
+  // sparkles
+  const sp = Math.sin(p.shimmer);
+  [[s*0.55,s*0.1],[s*-0.6,s*-0.1],[s*0.2,s*-0.55],[s*-0.3,s*0.5]].forEach(([sx,sy],i)=>{
+    ctx.globalAlpha = 0.5 + 0.5*Math.sin(p.shimmer + i*1.2);
+    ctx.fillStyle = '#FFF176';
+    ctx.save(); ctx.translate(sx,sy); ctx.rotate(p.shimmer+i);
     ctx.beginPath();
-    ctx.moveTo(ex-s*0.06, ey-s*0.06); ctx.lineTo(ex+s*0.06, ey+s*0.06); ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(ex+s*0.06, ey-s*0.06); ctx.lineTo(ex-s*0.06, ey+s*0.06); ctx.stroke();
+    ctx.moveTo(0,-s*0.12); ctx.lineTo(s*0.03,-s*0.03); ctx.lineTo(s*0.12,0);
+    ctx.lineTo(s*0.03,s*0.03); ctx.lineTo(0,s*0.12);
+    ctx.lineTo(-s*0.03,s*0.03); ctx.lineTo(-s*0.12,0);
+    ctx.lineTo(-s*0.03,-s*0.03); ctx.closePath(); ctx.fill();
+    ctx.restore();
   });
+  ctx.globalAlpha=1;
+
+  // happy eyes
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-s*0.10,-s*0.08,s*0.09,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(s*0.10,-s*0.08,s*0.09,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#5a3500';
+  // smile eyes (arcs)
+  ctx.strokeStyle='#5a3500'; ctx.lineWidth=2*scale; ctx.lineCap='round';
+  ctx.beginPath(); ctx.arc(-s*0.10,-s*0.1,s*0.06,Math.PI,0); ctx.stroke();
+  ctx.beginPath(); ctx.arc(s*0.10,-s*0.1,s*0.06,Math.PI,0); ctx.stroke();
+  // big smile
+  ctx.beginPath(); ctx.arc(0,s*0.0,s*0.14,0.2,Math.PI-0.2); ctx.stroke();
+
+  // ₩ label
+  ctx.fillStyle='#7B5900'; ctx.font=`bold ${s*0.28}px sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('+100',0,s*0.62);
 
   ctx.restore();
 }
 
-function drawPoop(p) {
-  if (p.type === 'king') drawKingPoop(p);
-  else if (p.type === 'zigzag') drawZigzagPoop(p);
-  else drawNormalPoop(p);
+function drawDiamondPoop(p) {
+  const s = 32*scale*p.size;
+  p.shimmer = (p.shimmer + 0.08) % (Math.PI*2);
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
+
+  // rainbow glow
+  const hue = (frame * 3) % 360;
+  ctx.globalAlpha = 0.28 + 0.10*Math.sin(p.shimmer);
+  ctx.fillStyle = `hsl(${hue},90%,70%)`;
+  ctx.beginPath(); ctx.arc(0, 0, s*0.78, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle='rgba(0,0,0,0.12)'; ctx.beginPath(); ctx.ellipse(0,s*0.55,s*0.45,s*0.11,0,0,Math.PI*2); ctx.fill();
+  drawPoopLayers(s, BASE_LAYERS(s), '#2C3E7A', '#5B78C8');
+
+  // diamond facets overlay
+  ctx.globalAlpha = 0.55 + 0.2*Math.sin(p.shimmer*2);
+  ctx.strokeStyle = `hsl(${(hue+60)%360},80%,80%)`; ctx.lineWidth = 1.2*scale;
+  // top diamond shape
+  ctx.beginPath();
+  ctx.moveTo(0,-s*0.42); ctx.lineTo(s*0.25,-s*0.15);
+  ctx.lineTo(0, s*0.05); ctx.lineTo(-s*0.25,-s*0.15); ctx.closePath(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-s*0.25,-s*0.15); ctx.lineTo(0,-s*0.15); ctx.lineTo(s*0.25,-s*0.15); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,-s*0.42); ctx.lineTo(0,-s*0.15); ctx.lineTo(0,s*0.05); ctx.stroke();
+  ctx.globalAlpha=1;
+
+  // star eyes
+  [[s*-0.10,s*-0.08],[s*0.10,s*-0.08]].forEach(([ex,ey])=>{
+    ctx.fillStyle=`hsl(${hue},90%,80%)`;
+    ctx.save(); ctx.translate(ex,ey);
+    ctx.beginPath();
+    for(let i=0;i<5;i++){
+      const a=i*Math.PI*2/5-Math.PI/2;
+      const ia=a+Math.PI/5;
+      i===0?ctx.moveTo(Math.cos(a)*s*0.09,Math.sin(a)*s*0.09):ctx.lineTo(Math.cos(a)*s*0.09,Math.sin(a)*s*0.09);
+      ctx.lineTo(Math.cos(ia)*s*0.04,Math.sin(ia)*s*0.04);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  });
+
+  // label
+  ctx.fillStyle='#fff'; ctx.font=`bold ${s*0.22}px sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('무적+❤️',0,s*0.62);
+
+  ctx.restore();
 }
 
-function getHitRadius(p) {
-  const base = 32 * scale * p.size;
-  if (p.type === 'king') return base * 0.44;
-  return base * 0.36;
-}
+function drawPlayer(p) {
+  if (p.invincible > 0 && player.shield === 0 && Math.floor(p.invincible/4)%2===0) return;
+  const x=p.x, y=p.y, w=PW(), h=PH();
+  ctx.save(); ctx.translate(x,y);
 
-function checkCollision(poop) {
-  const pw = PLAYER_W(), ph = PLAYER_H();
-  const hr = getHitRadius(poop);
-  const dx = Math.abs(poop.x - player.x);
-  const dy = Math.abs(poop.y - player.y);
-  return dx < (pw * 0.35 + hr) && dy < (ph * 0.28 + hr);
-}
-
-function addParticles(x, y, big) {
-  const n = big ? 22 : 14;
-  for (let i = 0; i < n; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const v = ((big ? 2.5 : 1.5) + Math.random() * 3.5) * scale;
-    particles.push({
-      x, y, vx: Math.cos(angle)*v, vy: Math.sin(angle)*v,
-      r: ((big ? 5 : 3) + Math.random() * 6) * scale,
-      color: ['#7B4A00','#9B6310','#C8860A','#FFD700','#fff'][Math.floor(Math.random()*5)],
-      life: big ? 55 : 40, maxLife: big ? 55 : 40
-    });
+  // shield aura (diamond effect)
+  if (player.shield > 0) {
+    const hue=(frame*4)%360;
+    ctx.globalAlpha=0.35+0.15*Math.sin(frame*0.15);
+    ctx.strokeStyle=`hsl(${hue},90%,70%)`; ctx.lineWidth=4*scale;
+    ctx.beginPath(); ctx.arc(0,-h*0.05,w*0.72,0,Math.PI*2); ctx.stroke();
+    ctx.globalAlpha=0.15;
+    ctx.fillStyle=`hsl(${hue},90%,70%)`;
+    ctx.beginPath(); ctx.arc(0,-h*0.05,w*0.72,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
   }
+
+  ctx.fillStyle='#FFD93D';
+  ctx.beginPath(); ctx.ellipse(0,2*scale,w*0.38,h*0.32,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#4a90d9'; ctx.fillRect(-w*0.22,h*0.18,w*0.18,h*0.25); ctx.fillRect(w*0.04,h*0.18,w*0.18,h*0.25);
+  ctx.fillStyle='#333';
+  ctx.beginPath(); ctx.ellipse(-w*0.13,h*0.44,w*0.15,h*0.08,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(w*0.13,h*0.44,w*0.15,h*0.08,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#FFD93D'; ctx.beginPath(); ctx.arc(0,-h*0.22,w*0.34,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#333';
+  ctx.beginPath(); ctx.arc(-w*0.10,-h*0.24,2.5*scale,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(w*0.10,-h*0.24,2.5*scale,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#333'; ctx.lineWidth=1.5*scale;
+  ctx.beginPath(); ctx.arc(0,-h*0.15,w*0.12,0.2,Math.PI-0.2); ctx.stroke();
+  const sw=Math.sin(frame*0.2)*0.3;
+  ctx.strokeStyle='#FFD93D'; ctx.lineWidth=5*scale; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-w*0.35,-h*0.02); ctx.lineTo(-w*0.55,h*0.10+sw*10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(w*0.35,-h*0.02); ctx.lineTo(w*0.55,h*0.10-sw*10); ctx.stroke();
+  ctx.restore();
 }
 
 function drawParticles() {
-  particles.forEach(p => {
-    ctx.globalAlpha = p.life / p.maxLife;
-    ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (p.life/p.maxLife), 0, Math.PI*2); ctx.fill();
+  particles.forEach(p=>{
+    ctx.globalAlpha=p.life/p.maxLife;
+    ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*(p.life/p.maxLife),0,Math.PI*2); ctx.fill();
   });
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha=1;
+}
+
+function drawFloatTexts() {
+  floatTexts.forEach(t=>{
+    ctx.globalAlpha=Math.min(1,t.life/15);
+    ctx.fillStyle=t.color;
+    ctx.font=`bold ${t.size*scale}px sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(t.text,t.x,t.y);
+  });
+  ctx.globalAlpha=1;
+}
+
+function addFloatText(x,y,text,color,size=22) {
+  floatTexts.push({x,y,text,color,size,life:55,maxLife:55,vy:-1.2*scale});
+}
+
+function addParticles(x,y,colors,big) {
+  const n=big?22:14;
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2;
+    const v=((big?2.5:1.5)+Math.random()*3.5)*scale;
+    particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:((big?5:3)+Math.random()*6)*scale,color:colors[Math.floor(Math.random()*colors.length)],life:big?55:40,maxLife:big?55:40});
+  }
+}
+
+function getHitRadius(p) {
+  const base=32*scale*p.size;
+  return p.type==='king'?base*0.44:base*0.36;
+}
+
+function checkCollision(poop) {
+  const hr=getHitRadius(poop);
+  const dx=Math.abs(poop.x-player.x);
+  const dy=Math.abs(poop.y-player.y);
+  return dx<(PW()*0.35+hr)&&dy<(PH()*0.28+hr);
 }
 
 function drawHUD() {
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.beginPath(); ctx.roundRect(W/2 - 58*scale, 8*scale, 116*scale, 28*scale, 6*scale); ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.font = `500 ${13*scale}px sans-serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('점수: ' + Math.floor(score), W/2, 22*scale);
+  ctx.fillStyle='rgba(0,0,0,0.48)';
+  ctx.beginPath(); ctx.roundRect(W/2-62*scale,8*scale,124*scale,28*scale,6*scale); ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.font=`500 ${13*scale}px sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('점수: '+Math.floor(score),W/2,22*scale);
+
+  if(player.shield>0){
+    const secs=Math.ceil(player.shield/60);
+    ctx.fillStyle='rgba(0,0,0,0.48)';
+    ctx.beginPath(); ctx.roundRect(W-90*scale,8*scale,82*scale,26*scale,6*scale); ctx.fill();
+    const hue=(frame*4)%360;
+    ctx.fillStyle=`hsl(${hue},90%,75%)`;
+    ctx.font=`500 ${12*scale}px sans-serif`;
+    ctx.fillText('💎무적 '+secs+'초',W-49*scale,21*scale);
+  }
 }
 
-// Touch / pointer controls - drag follows finger
-function getCanvasX(clientX) {
-  const rect = canvas.getBoundingClientRect();
-  return (clientX - rect.left) * (W / rect.width);
+// ---- INPUT ----
+function getCanvasX(clientX){
+  const rect=canvas.getBoundingClientRect();
+  return (clientX-rect.left)*(W/rect.width);
 }
+canvas.addEventListener('pointerdown',e=>{e.preventDefault();touchX=getCanvasX(e.clientX);touchActive=true;},{passive:false});
+canvas.addEventListener('pointermove',e=>{e.preventDefault();if(touchActive)touchX=getCanvasX(e.clientX);},{passive:false});
+canvas.addEventListener('pointerup',()=>{touchActive=false;touchX=null;});
+canvas.addEventListener('pointerleave',()=>{touchActive=false;touchX=null;});
+canvas.addEventListener('pointercancel',()=>{touchActive=false;touchX=null;});
+document.getElementById('canvas-wrap').addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'){keys.left=true;e.preventDefault();}if(e.key==='ArrowRight'){keys.right=true;e.preventDefault();}});
+document.addEventListener('keyup',e=>{if(e.key==='ArrowLeft')keys.left=false;if(e.key==='ArrowRight')keys.right=false;});
 
-canvas.addEventListener('pointerdown', e => {
-  e.preventDefault();
-  touchX = getCanvasX(e.clientX);
-  touchActive = true;
-}, {passive: false});
-
-canvas.addEventListener('pointermove', e => {
-  e.preventDefault();
-  if (!touchActive) return;
-  touchX = getCanvasX(e.clientX);
-}, {passive: false});
-
-canvas.addEventListener('pointerup', e => { touchActive = false; touchX = null; });
-canvas.addEventListener('pointerleave', e => { touchActive = false; touchX = null; });
-canvas.addEventListener('pointercancel', e => { touchActive = false; touchX = null; });
-
-// prevent scroll
-document.getElementById('canvas-wrap').addEventListener('touchmove', e => e.preventDefault(), {passive: false});
-
-// keyboard
-document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowLeft') { keys.left = true; e.preventDefault(); }
-  if (e.key === 'ArrowRight') { keys.right = true; e.preventDefault(); }
-});
-document.addEventListener('keyup', e => {
-  if (e.key === 'ArrowLeft') keys.left = false;
-  if (e.key === 'ArrowRight') keys.right = false;
-});
-
-function gameLoop() {
-  if (state !== 'playing') return;
-  ctx.clearRect(0, 0, W, H);
-  drawSky(); drawClouds(); drawStars(); drawParticles();
+// ---- GAME LOOP ----
+function gameLoop(){
+  if(state!=='playing')return;
+  ctx.clearRect(0,0,W,H);
+  drawSky();drawClouds();drawStars();drawParticles();
 
   // player move
-  const spd = 5 * scale;
-  if (touchActive && touchX !== null) {
-    const diff = touchX - player.x;
-    const move = Math.min(Math.abs(diff), spd * 2.2) * Math.sign(diff);
-    player.x += move;
+  const spd=5*scale;
+  if(touchActive&&touchX!==null){
+    const diff=touchX-player.x;
+    player.x+=Math.min(Math.abs(diff),spd*2.2)*Math.sign(diff);
   } else {
-    if (keys.left) player.x -= spd;
-    if (keys.right) player.x += spd;
+    if(keys.left)player.x-=spd;
+    if(keys.right)player.x+=spd;
   }
-  player.x = Math.max(PLAYER_W()*0.5, Math.min(W - PLAYER_W()*0.5, player.x));
-  if (player.invincible > 0) player.invincible--;
+  player.x=Math.max(PW()*0.5,Math.min(W-PW()*0.5,player.x));
+  if(player.invincible>0)player.invincible--;
+  if(player.shield>0)player.shield--;
 
   // spawn
   spawnTimer++;
-  if (spawnTimer >= spawnInterval) {
-    spawnPoop(); spawnTimer = 0;
-    spawnInterval = Math.max(26, spawnInterval - 0.5);
-  }
+  if(spawnTimer>=spawnInterval){spawnPoop();spawnTimer=0;spawnInterval=Math.max(26,spawnInterval-0.5);}
 
-  // update & draw poops
-  poops = poops.filter(p => {
-    p.y += p.vy;
-    p.angle += p.spin || 0;
-    p.wobble += 0.05;
-
-    if (p.type === 'zigzag') {
+  // update poops
+  poops=poops.filter(p=>{
+    p.y+=p.vy; p.angle+=p.spin||0; p.wobble+=0.05;
+    if(p.type==='zigzag'){
       p.zigTimer++;
-      if (p.zigTimer >= p.zigInterval) { p.zigDir *= -1; p.zigTimer = 0; }
-      p.x += p.vx * p.zigDir;
-      if (p.x < 20*scale || p.x > W - 20*scale) { p.zigDir *= -1; p.x = Math.max(20*scale, Math.min(W - 20*scale, p.x)); }
-    } else if (p.type === 'normal') {
-      p.x += Math.sin(p.wobble) * 0.4 * scale;
+      if(p.zigTimer>=p.zigInterval){p.zigDir*=-1;p.zigTimer=0;}
+      p.x+=p.vx*p.zigDir;
+      if(p.x<20*scale||p.x>W-20*scale){p.zigDir*=-1;p.x=Math.max(20*scale,Math.min(W-20*scale,p.x));}
+    } else if(p.type==='normal'){
+      p.x+=Math.sin(p.wobble)*0.4*scale;
     }
 
-    drawPoop(p);
+    if(p.type==='gold')drawGoldPoop(p);
+    else if(p.type==='diamond')drawDiamondPoop(p);
+    else if(p.type==='king')drawKingPoop(p);
+    else if(p.type==='zigzag')drawZigzagPoop(p);
+    else drawNormalPoop(p);
 
-    const ps = 32 * scale * p.size;
-    if (p.y > GROUND() + ps) { score += p.type === 'king' ? 30 : 10; return false; }
-
-    if (player.invincible === 0 && checkCollision(p)) {
-      addParticles(p.x, p.y, p.type === 'king');
-      lives--;
-      player.invincible = p.type === 'king' ? 120 : 90;
-      updateHUD();
-      if (lives <= 0) { state = 'over'; setTimeout(showGameOver, 500); }
+    const ps=32*scale*p.size;
+    if(p.y>GROUND()+ps){
+      if(p.type!=='gold'&&p.type!=='diamond')score+=p.type==='king'?30:10;
       return false;
+    }
+
+    if(checkCollision(p)){
+      if(p.type==='gold'){
+        // collect gold: +100 points
+        score+=100;
+        addParticles(p.x,p.y,['#FFD700','#FFF176','#DAA520','#fff'],true);
+        addFloatText(p.x,p.y-30*scale,'+100!','#FFD700',26);
+        updateHUD();
+        return false;
+      } else if(p.type==='diamond'){
+        // collect diamond: invincible 3s + heal 1hp
+        player.shield=180; // 3s at 60fps
+        player.invincible=180;
+        if(lives<3)lives++;
+        addParticles(p.x,p.y,['#a29bfe','#74b9ff','#fff','#fd79a8'],true);
+        addFloatText(p.x,p.y-30*scale,'무적+❤️','#74b9ff',22);
+        updateHUD();
+        return false;
+      } else {
+        // damage
+        if(player.shield>0)return false; // shield blocks damage
+        if(player.invincible===0){
+          addParticles(p.x,p.y,['#7B4A00','#9B6310','#C8860A','#fff'],p.type==='king');
+          lives--;
+          player.invincible=p.type==='king'?120:90;
+          updateHUD();
+          if(lives<=0){state='over';setTimeout(showGameOver,500);}
+        }
+        return false;
+      }
     }
     return true;
   });
 
+  drawFloatTexts();
   drawPlayer(player);
   drawHUD();
 
-  score += 0.08;
-  speed = 2.2 + score * 0.005;
-  poops.forEach(p => { p.vy = Math.min(p.vy * 1.0006, 9 * scale); });
+  score+=0.08;
+  speed=2.2+score*0.005;
+  poops.forEach(p=>{if(p.type!=='gold'&&p.type!=='diamond')p.vy=Math.min(p.vy*1.0006,9*scale);});
 
-  particles = particles.filter(p => {
-    p.x += p.vx; p.y += p.vy; p.vy += 0.1*scale; p.life--;
-    return p.life > 0;
-  });
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.1*scale;p.life--;return p.life>0;});
+  floatTexts=floatTexts.filter(t=>{t.y+=t.vy;t.life--;return t.life>0;});
 
   frame++;
-  rafId = requestAnimationFrame(gameLoop);
+  rafId=requestAnimationFrame(gameLoop);
 }
 
-function showGameOver() {
-  if (score > best) best = score;
+function showGameOver(){
+  if(score>best)best=score;
   updateHUD();
-  overlay.innerHTML = `
+  overlay.innerHTML=`
     <h2>게임 오버!</h2>
-    <p>점수: <strong style="color:#FFD93D;font-size:22px">${Math.floor(score)}</strong><br>
-    최고 점수: <strong style="color:#fff">${Math.floor(best)}</strong></p>
+    <p style="color:rgba(255,255,255,0.85);font-size:14px;text-align:center">점수 <strong style="color:#FFD93D;font-size:22px">${Math.floor(score)}</strong> &nbsp;|&nbsp; 최고 <strong style="color:#fff">${Math.floor(best)}</strong></p>
     <button id="start-btn" style="background:#fff;color:#333;border:none;padding:11px 30px;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer">다시 하기</button>`;
-  overlay.style.display = 'flex';
-  document.getElementById('start-btn').onclick = startGame;
+  overlay.style.display='flex';
+  document.getElementById('start-btn').onclick=startGame;
 }
 
-function startGame() {
-  if (rafId) cancelAnimationFrame(rafId);
-  overlay.style.display = 'none';
-  resize();
-  initGame();
-  state = 'playing';
-  gameLoop();
+function startGame(){
+  if(rafId)cancelAnimationFrame(rafId);
+  overlay.style.display='none';
+  resize(); initGame(); state='playing'; gameLoop();
 }
-
-document.getElementById('start-btn').onclick = startGame;
-window.addEventListener('resize', () => { if (state === 'playing') resize(); });
+document.getElementById('start-btn').onclick=startGame;
+window.addEventListener('resize',()=>{if(state==='playing')resize();});
 </script>
