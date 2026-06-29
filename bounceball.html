@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>바운스볼 게임</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0f172a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #e2e8f0;
+    padding: 20px;
+  }
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 12px; letter-spacing: 1px; }
+  #score-bar {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #94a3b8;
+  }
+  #score-bar span { font-weight: 500; color: #e2e8f0; }
+
+  #game-area {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  #canvas-wrap { position: relative; flex-shrink: 0; }
+  #gameCanvas {
+    border-radius: 12px;
+    border: 1px solid #334155;
+    display: block;
+    background: #0f172a;
+    cursor: none;
+  }
+  #overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.88);
+    color: #fff;
+    gap: 14px;
+  }
+  #overlay h2 { margin: 0; font-size: 26px; font-weight: 500; }
+  #overlay p { margin: 0; font-size: 15px; color: #94a3b8; }
+  #overlay button {
+    margin-top: 4px;
+    padding: 11px 32px;
+    border-radius: 8px;
+    border: none;
+    background: #6366f1;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  #overlay button:hover { background: #4f46e5; }
+
+  /* 범례 패널 */
+  #legend {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 14px 12px;
+    width: 130px;
+    flex-shrink: 0;
+  }
+  #legend h3 {
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .legend-brick {
+    width: 36px;
+    height: 18px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(0,0,0,0.35);
+    letter-spacing: 0.5px;
+  }
+  .legend-brick.tough {
+    background: linear-gradient(135deg, transparent 40%, rgba(0,0,0,0.25) 40%);
+    position: relative;
+  }
+  .legend-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .legend-hits {
+    font-size: 12px;
+    font-weight: 500;
+    color: #e2e8f0;
+  }
+  .legend-desc {
+    font-size: 10px;
+    color: #64748b;
+    line-height: 1.3;
+  }
+  .legend-divider {
+    border: none;
+    border-top: 1px solid #334155;
+    margin: 8px 0 10px;
+  }
+  /* 범례 아이콘 시각화 (미니 캔버스) */
+  #legendCanvas { display: block; margin: 0 auto 4px; }
+
+  #controls-hint {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #475569;
+    text-align: center;
+  }
+  #mobile-btns {
+    display: none;
+    gap: 16px;
+    margin-top: 14px;
+  }
+  #mobile-btns button {
+    padding: 16px 40px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    background: #1e293b;
+    color: #e2e8f0;
+    font-size: 20px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  @media (max-width: 720px) {
+    #game-area { flex-direction: column; align-items: center; }
+    #legend { width: 100%; max-width: 520px; }
+    .legend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    #mobile-btns { display: flex; }
+    #gameCanvas { cursor: default; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🎾 바운스볼</h1>
+<div id="score-bar">
+  <div>점수 <span id="scoreVal">0</span></div>
+  <div>레벨 <span id="levelVal">1</span></div>
+  <div>목숨 <span id="livesVal">❤️❤️❤️</span></div>
+</div>
+
+<div id="game-area">
+  <div id="canvas-wrap">
+    <canvas id="gameCanvas" width="520" height="400"></canvas>
+    <div id="overlay">
+      <h2>🎾 바운스볼</h2>
+      <p>마우스로 패들을 움직여 공을 튕기세요</p>
+      <button id="startBtn">게임 시작</button>
+    </div>
+  </div>
+
+  <!-- 범례 -->
+  <div id="legend">
+    <h3>벽돌 안내</h3>
+    <canvas id="legendCanvas" width="106" height="220"></canvas>
+  </div>
+</div>
+
+<div id="controls-hint">마우스를 좌우로 움직여 패들을 조작하세요</div>
+<div id="mobile-btns">
+  <button id="leftBtn">◀</button>
+  <button id="rightBtn">▶</button>
+</div>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const scoreEl = document.getElementById('scoreVal');
+  const levelEl = document.getElementById('levelVal');
+  const livesEl = document.getElementById('livesVal');
+
+  const W = canvas.width, H = canvas.height;
+  const PADDLE_H = 12, PADDLE_W = 90, BALL_R = 9;
+  const BRICK_ROWS = 4, BRICK_COLS = 10, BRICK_H = 20, BRICK_GAP = 5;
+  const BRICK_W = (W - (BRICK_COLS + 1) * BRICK_GAP) / BRICK_COLS;
+
+  const BASE_SPEED = 2.4;
+  const LEVEL_SPEED_INC = 0.25;
+
+  // 행 0~1 = 1타, 행 2~3 = 2타
+  const ROW_COLORS = ['#f87171','#fb923c','#facc15','#4ade80','#38bdf8','#818cf8','#e879f9','#f472b6'];
+  // 실제 사용 색상 (행 순서대로)
+  const BRICK_ROW_COLORS = [
+    ROW_COLORS[4], // row0 - 파랑 1타
+    ROW_COLORS[5], // row1 - 보라 1타
+    ROW_COLORS[0], // row2 - 빨강 2타
+    ROW_COLORS[1], // row3 - 주황 2타
+  ];
+
+  let ball, paddle, bricks, score, level, lives, state, animId;
+  let mobileLeft = false, mobileRight = false;
+
+  /* ── 범례 그리기 ── */
+  function drawLegend() {
+    const lc = document.getElementById('legendCanvas');
+    const lx = lc.getContext('2d');
+    const LW = lc.width, LH = lc.height;
+    lx.clearRect(0, 0, LW, LH);
+
+    const BW = 70, BH = 22, BX = 4;
+    const labelX = BX + BW + 6;
+
+    function drawBrick(lx, bx, by, bw, bh, color, hp) {
+      // 벽돌 본체
+      lx.fillStyle = color;
+      lx.beginPath();
+      lx.roundRect(bx, by, bw, bh, 4);
+      lx.fill();
+
+      // 2타짜리는 어둡게 오버레이
+      if (hp === 2) {
+        lx.fillStyle = 'rgba(0,0,0,0.3)';
+        lx.beginPath();
+        lx.roundRect(bx, by, bw, bh, 4);
+        lx.fill();
+      }
+
+      // 균열 선 (2타)
+      if (hp === 2) {
+        lx.strokeStyle = 'rgba(255,255,255,0.18)';
+        lx.lineWidth = 1;
+        lx.beginPath();
+        lx.moveTo(bx + bw * 0.3, by + 2);
+        lx.lineTo(bx + bw * 0.45, by + bh - 2);
+        lx.moveTo(bx + bw * 0.6, by + 2);
+        lx.lineTo(bx + bw * 0.75, by + bh - 2);
+        lx.stroke();
+      }
+    }
+
+    function hits(lx, x, y, n, color) {
+      // 공 아이콘들
+      for (let i = 0; i < n; i++) {
+        lx.beginPath();
+        lx.arc(x + i * 12, y, 4, 0, Math.PI * 2);
+        lx.fillStyle = '#e0e7ff';
+        lx.fill();
+        lx.strokeStyle = '#818cf8';
+        lx.lineWidth = 1;
+        lx.stroke();
+      }
+    }
+
+    // 제목 행 레이블
+    lx.font = '500 10px -apple-system, sans-serif';
+    lx.fillStyle = '#64748b';
+    lx.fillText('벽돌', BX, 13);
+    lx.fillText('횟수', labelX, 13);
+
+    // 구분선
+    lx.strokeStyle = '#334155';
+    lx.lineWidth = 1;
+    lx.beginPath();
+    lx.moveTo(0, 18);
+    lx.lineTo(LW, 18);
+    lx.stroke();
+
+    const entries = [
+      { color: BRICK_ROW_COLORS[0], hp: 1, label: '파랑' },
+      { color: BRICK_ROW_COLORS[1], hp: 1, label: '보라' },
+      { color: BRICK_ROW_COLORS[2], hp: 2, label: '빨강' },
+      { color: BRICK_ROW_COLORS[3], hp: 2, label: '주황' },
+    ];
+
+    entries.forEach((e, i) => {
+      const by = 26 + i * 48;
+
+      // 벽돌
+      drawBrick(lx, BX, by, BW, BH, e.color, e.hp);
+
+      // 이름
+      lx.font = '400 10px -apple-system, sans-serif';
+      lx.fillStyle = '#94a3b8';
+      lx.fillText(e.label, BX + 2, by + BH + 11);
+
+      // 공 아이콘
+      hits(lx, labelX + 4, by + BH / 2, e.hp, e.color);
+
+      // 타수 텍스트
+      lx.font = '500 10px -apple-system, sans-serif';
+      lx.fillStyle = '#94a3b8';
+      lx.fillText(e.hp === 1 ? '1번' : '2번', labelX, by + BH + 11);
+
+      // 구분선
+      if (i < entries.length - 1) {
+        lx.strokeStyle = '#1e3a5f22';
+        lx.lineWidth = 1;
+        lx.beginPath();
+        lx.moveTo(0, by + BH + 18);
+        lx.lineTo(LW, by + BH + 18);
+        lx.stroke();
+      }
+    });
+  }
+
+  /* ── 게임 로직 ── */
+  function initBricks() {
+    bricks = [];
+    for (let r = 0; r < BRICK_ROWS; r++) {
+      for (let c = 0; c < BRICK_COLS; c++) {
+        bricks.push({
+          x: BRICK_GAP + c * (BRICK_W + BRICK_GAP),
+          y: 50 + r * (BRICK_H + BRICK_GAP),
+          color: BRICK_ROW_COLORS[r],
+          origColor: BRICK_ROW_COLORS[r],
+          alive: true,
+          hp: r < 2 ? 1 : 2,
+          maxHp: r < 2 ? 1 : 2,
+        });
+      }
+    }
+  }
+
+  function initBall() {
+    const spd = BASE_SPEED + (level - 1) * LEVEL_SPEED_INC;
+    ball = {
+      x: W / 2, y: H - 80,
+      dx: (Math.random() > 0.5 ? 1 : -1) * spd,
+      dy: -spd,
+      trail: []
+    };
+  }
+
+  function initPaddle() {
+    paddle = { x: W / 2 - PADDLE_W / 2, y: H - 32, w: PADDLE_W };
+  }
+
+  function updateHUD() {
+    scoreEl.textContent = score;
+    levelEl.textContent = level;
+    livesEl.textContent = '❤️'.repeat(lives);
+  }
+
+  function startGame() {
+    score = 0; level = 1; lives = 3;
+    updateHUD();
+    initBricks(); initBall(); initPaddle();
+    state = 'playing';
+    overlay.style.display = 'none';
+    cancelAnimationFrame(animId);
+    loop();
+  }
+
+  canvas.addEventListener('mousemove', e => {
+    if (state !== 'playing') return;
+    const rect = canvas.getBoundingClientRect();
+    paddle.x = Math.max(0, Math.min(W - paddle.w, e.clientX - rect.left - paddle.w / 2));
+  });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (state !== 'playing') return;
+    const rect = canvas.getBoundingClientRect();
+    paddle.x = Math.max(0, Math.min(W - paddle.w, e.touches[0].clientX - rect.left - paddle.w / 2));
+  }, { passive: false });
+
+  document.getElementById('leftBtn').addEventListener('touchstart', () => mobileLeft = true);
+  document.getElementById('leftBtn').addEventListener('touchend', () => mobileLeft = false);
+  document.getElementById('rightBtn').addEventListener('touchstart', () => mobileRight = true);
+  document.getElementById('rightBtn').addEventListener('touchend', () => mobileRight = false);
+
+  function loop() {
+    if (state !== 'playing') return;
+    update(); draw();
+    animId = requestAnimationFrame(loop);
+  }
+
+  function update() {
+    if (mobileLeft) paddle.x = Math.max(0, paddle.x - 7);
+    if (mobileRight) paddle.x = Math.min(W - paddle.w, paddle.x + 7);
+
+    ball.trail.push({ x: ball.x, y: ball.y });
+    if (ball.trail.length > 8) ball.trail.shift();
+
+    ball.x += ball.dx;
+    ball.y += ball.dy;
+
+    if (ball.x - BALL_R < 0) { ball.x = BALL_R; ball.dx = Math.abs(ball.dx); }
+    if (ball.x + BALL_R > W) { ball.x = W - BALL_R; ball.dx = -Math.abs(ball.dx); }
+    if (ball.y - BALL_R < 0) { ball.y = BALL_R; ball.dy = Math.abs(ball.dy); }
+
+    const px = paddle.x, py = paddle.y, pw = paddle.w;
+    if (ball.y + BALL_R >= py && ball.y - BALL_R <= py + PADDLE_H &&
+        ball.x >= px && ball.x <= px + pw && ball.dy > 0) {
+      const hit = (ball.x - (px + pw / 2)) / (pw / 2);
+      const angle = hit * 60 * Math.PI / 180;
+      const speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+      ball.dx = speed * Math.sin(angle);
+      ball.dy = -Math.abs(speed * Math.cos(angle));
+      ball.y = py - BALL_R;
+    }
+
+    if (ball.y - BALL_R > H) {
+      lives--;
+      updateHUD();
+      if (lives <= 0) { gameOver(); return; }
+      initBall();
+    }
+
+    bricks.forEach(b => {
+      if (!b.alive) return;
+      if (ball.x + BALL_R > b.x && ball.x - BALL_R < b.x + BRICK_W &&
+          ball.y + BALL_R > b.y && ball.y - BALL_R < b.y + BRICK_H) {
+        const fromLeft  = Math.abs(ball.x + BALL_R - b.x);
+        const fromRight = Math.abs(ball.x - BALL_R - (b.x + BRICK_W));
+        const fromTop   = Math.abs(ball.y + BALL_R - b.y);
+        const fromBot   = Math.abs(ball.y - BALL_R - (b.y + BRICK_H));
+        if (Math.min(fromLeft, fromRight) < Math.min(fromTop, fromBot)) ball.dx *= -1;
+        else ball.dy *= -1;
+        b.hp--;
+        if (b.hp <= 0) { b.alive = false; score += 10 * level; updateHUD(); }
+        else { b.color = '#fbbf24'; }
+      }
+    });
+
+    if (bricks.every(b => !b.alive)) {
+      level++; updateHUD(); initBricks(); initBall();
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, W, H);
+
+    ball.trail.forEach((t, i) => {
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, BALL_R * (i / ball.trail.length), 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(129,140,248,${(i / ball.trail.length) * 0.25})`;
+      ctx.fill();
+    });
+
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+    ctx.fillStyle = '#e0e7ff';
+    ctx.fill();
+    ctx.strokeStyle = '#818cf8';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const grad = ctx.createLinearGradient(paddle.x, 0, paddle.x + paddle.w, 0);
+    grad.addColorStop(0, '#6366f1');
+    grad.addColorStop(1, '#818cf8');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(paddle.x, paddle.y, paddle.w, PADDLE_H, 6);
+    ctx.fill();
+
+    bricks.forEach(b => {
+      if (!b.alive) return;
+      ctx.fillStyle = b.color;
+      ctx.beginPath();
+      ctx.roundRect(b.x, b.y, BRICK_W, BRICK_H, 4);
+      ctx.fill();
+
+      // 2타 남은 벽돌: 어둡게
+      if (b.maxHp === 2 && b.hp === 2) {
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.beginPath();
+        ctx.roundRect(b.x, b.y, BRICK_W, BRICK_H, 4);
+        ctx.fill();
+      }
+    });
+  }
+
+  function gameOver() {
+    state = 'over';
+    cancelAnimationFrame(animId);
+    overlay.querySelector('h2').textContent = '게임 오버 😢';
+    overlay.querySelector('p').textContent = `최종 점수: ${score}점`;
+    startBtn.textContent = '다시 시작';
+    overlay.style.display = 'flex';
+  }
+
+  startBtn.addEventListener('click', startGame);
+
+  // 범례는 페이지 로드 시 바로 그림
+  drawLegend();
+</script>
+</body>
+</html>
