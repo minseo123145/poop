@@ -2,1164 +2,153 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>FOOTBALL x BOXING</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>이정원 키 키우기</title>
 <style>
-  :root{
-    --ink:#0b1410;
-    --pitch-a:#173821;
-    --pitch-b:#122d1b;
-    --line:#e9f5ec;
-    --red:#e8462e;
-    --red-dim:#7a2a1f;
-    --blue:#2e8ce8;
-    --blue-dim:#1f4d7a;
-    --gold:#f2c14e;
-    --hud-bg:rgba(6,14,10,0.72);
-    --hp:#e0413a;
-    --stam:#f2c14e;
-  }
-  *{box-sizing:border-box;}
-  html,body{
-    margin:0;padding:0;height:100%;background:#040a06;
-    font-family:'Arial Narrow',Arial,sans-serif;
-    overflow:hidden;color:var(--line);
-  }
-  #app{
-    position:relative;width:100%;height:100%;
-    display:flex;align-items:center;justify-content:center;
-  }
-  #stage{
-    position:relative;
-    width:min(96vw, 178vh);
-    aspect-ratio: 1400/800;
-    background:#040a06;
-  }
-  canvas{
-    position:absolute;top:0;left:0;width:100%;height:100%;
-    display:block;cursor:crosshair;
-    border:3px solid #0e1f14;
-    border-radius:4px;
-    box-shadow:0 0 0 1px #000, 0 20px 60px rgba(0,0,0,0.6);
-  }
-
-  /* ===== MENU ===== */
-  #menu{
-    position:absolute;inset:0;z-index:20;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    background:
-      radial-gradient(ellipse at 50% -10%, rgba(242,193,78,0.10), transparent 55%),
-      linear-gradient(180deg,#0a1a10 0%, #050d08 70%);
-    text-align:center;padding:20px;
-  }
-  #menu h1{
-    font-family:'Impact','Arial Narrow',sans-serif;
-    font-size:clamp(34px,6vw,64px);
-    letter-spacing:2px;
-    margin:0;
-    background:linear-gradient(180deg,#fff, var(--gold) 60%, #a5731f 100%);
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-    text-shadow:0 2px 0 rgba(0,0,0,0.3);
-  }
-  #menu h1 span{color:var(--red);-webkit-text-fill-color:var(--red);}
-  #menu .sub{
-    letter-spacing:6px;font-size:12px;color:#9fb3a4;margin-top:6px;
-    text-transform:uppercase;
-  }
-  .panel{
-    margin-top:28px;background:var(--hud-bg);border:1px solid rgba(255,255,255,0.08);
-    border-radius:10px;padding:22px 28px;width:min(92vw,420px);
-    backdrop-filter:blur(6px);
-  }
-  .row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:10px 0;}
-  .row label{font-size:13px;color:#cfe0d3;letter-spacing:1px;}
-  input[type=range]{flex:1;accent-color:var(--gold);}
-  #countVal{font-weight:bold;color:var(--gold);width:26px;text-align:right;}
-  .modebtns{display:flex;gap:8px;margin-top:4px;}
-  .modebtns button{
-    flex:1;padding:9px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);
-    background:rgba(255,255,255,0.04);color:#cfe0d3;font-size:12px;cursor:pointer;
-    transition:all .15s;
-  }
-  .modebtns button.active{background:var(--gold);color:#231a05;border-color:var(--gold);font-weight:bold;}
-  #startBtn{
-    margin-top:18px;width:100%;padding:14px;font-size:17px;font-weight:bold;
-    letter-spacing:2px;border:none;border-radius:8px;cursor:pointer;
-    background:linear-gradient(180deg,var(--red),#a52c1a);color:#fff;
-    box-shadow:0 6px 0 #6e2011, 0 8px 18px rgba(0,0,0,0.4);
-    transition:transform .08s;
-  }
-  #startBtn:active{transform:translateY(4px);box-shadow:0 2px 0 #6e2011;}
-  #howto{
-    margin-top:14px;font-size:11px;color:#8ba594;line-height:1.7;text-align:left;
-  }
-  #howto b{color:var(--gold);}
-  .note{margin-top:10px;font-size:10.5px;color:#6d857a;}
-
-  /* ===== HUD ===== */
-  #hud{position:absolute;inset:0;pointer-events:none;z-index:10;font-size:13px;}
-  #topbar{
-    position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;
-    align-items:flex-start;padding:10px 14px;
-  }
-  .score{
-    background:var(--hud-bg);padding:6px 14px;border-radius:0 0 10px 10px;
-    font-family:'Impact','Arial Narrow',sans-serif;font-size:22px;letter-spacing:2px;
-    display:flex;align-items:center;gap:8px;min-width:110px;
-  }
-  .score.red{color:var(--red);border-bottom:3px solid var(--red);}
-  .score.blue{color:var(--blue);border-bottom:3px solid var(--blue);text-align:right;flex-direction:row-reverse;}
-  #timer{
-    background:var(--hud-bg);padding:6px 20px;border-radius:0 0 10px 10px;
-    font-family:'Impact','Arial Narrow',sans-serif;font-size:26px;letter-spacing:2px;color:var(--gold);
-  }
-  #bottombar{
-    position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-between;
-    align-items:flex-end;padding:12px 16px;
-  }
-  #statpanel{
-    background:var(--hud-bg);border-radius:10px;padding:10px 14px;width:230px;
-  }
-  .barlabel{font-size:10px;letter-spacing:1px;color:#a9bfb0;margin-bottom:2px;display:flex;justify-content:space-between;}
-  .bar{height:10px;border-radius:6px;background:rgba(255,255,255,0.08);overflow:hidden;margin-bottom:8px;}
-  .bar>i{display:block;height:100%;border-radius:6px;transition:width .12s;}
-  .hpfill{background:linear-gradient(90deg,#ff8a6b,var(--hp));}
-  .stamfill{background:linear-gradient(90deg,#ffe082,var(--stam));}
-  #cds{display:flex;gap:8px;margin-top:2px;}
-  .cd{font-size:10px;padding:3px 6px;border-radius:4px;background:rgba(255,255,255,0.06);color:#9fb3a4;}
-  .cd.ready{color:#8ef0a0;}
-  #slots{display:flex;gap:8px;background:var(--hud-bg);border-radius:10px;padding:8px;}
-  .slot{
-    width:52px;height:52px;border-radius:8px;background:rgba(255,255,255,0.05);
-    border:1px solid rgba(255,255,255,0.12);display:flex;flex-direction:column;
-    align-items:center;justify-content:center;position:relative;
-  }
-  .slot .num{position:absolute;top:2px;left:4px;font-size:9px;color:#7f9686;}
-  .slot .ico{font-size:22px;}
-  .slot .ammo{font-size:9px;color:var(--gold);}
-  #msgcenter{
-    position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);
-    text-align:center;pointer-events:none;
-  }
-  #bignote{
-    font-family:'Impact','Arial Narrow',sans-serif;font-size:54px;letter-spacing:3px;
-    color:var(--gold);text-shadow:0 0 20px rgba(0,0,0,0.8),0 4px 0 #000;opacity:0;
-  }
-  #endscreen{
-    position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;
-    flex-direction:column;background:rgba(2,6,4,0.86);
-  }
-  #endscreen h2{font-family:'Impact','Arial Narrow',sans-serif;font-size:48px;color:var(--gold);margin:0 0 6px;}
-  #endscreen p{color:#cfe0d3;margin:4px 0 20px;}
-  #endscreen button{
-    padding:12px 26px;border-radius:8px;border:none;background:var(--red);color:#fff;
-    font-weight:bold;letter-spacing:1px;cursor:pointer;font-size:14px;
-  }
-  #blindoverlay{
-    position:absolute;inset:0;background:radial-gradient(circle at 50% 50%, transparent 12%, rgba(0,0,0,0.96) 62%);
-    opacity:0;pointer-events:none;transition:opacity .3s;z-index:15;
-  }
-  #hint{
-    position:absolute;top:56px;left:14px;background:var(--hud-bg);padding:6px 10px;border-radius:6px;
-    font-size:10.5px;color:#9fb3a4;max-width:220px;line-height:1.6;
-  }
+:root{--bg:#eaf6ff;--card:#fff;--tx:#1d2b3a;--sub:#5b6b7b;--ac:#ff7a45;--line:#cfe3f2;--sky:#bfe4ff;--grass:#8fd694;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101922;--card:#1b2733;--tx:#eaf2f8;--sub:#9fb2c3;--line:#2c3e4f;--sky:#1f3a52;--grass:#2f6a3b}}
+:root[data-theme="dark"]{--bg:#101922;--card:#1b2733;--tx:#eaf2f8;--sub:#9fb2c3;--line:#2c3e4f;--sky:#1f3a52;--grass:#2f6a3b}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;display:flex;justify-content:center}
+.app{width:100%;max-width:520px;padding:16px}
+h1{font-size:22px;margin:4px 0 2px;text-align:center}
+.sub{text-align:center;color:var(--sub);font-size:13px;margin-bottom:12px}
+.stats{display:flex;gap:8px;margin-bottom:10px}
+.stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;text-align:center}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:12px;color:var(--sub)}
+.title{text-align:center;font-weight:700;color:var(--ac);min-height:24px;margin-bottom:8px}
+.stage{position:relative;height:340px;background:linear-gradient(var(--sky),var(--bg));border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.ground{position:absolute;left:0;right:0;bottom:0;height:14px;background:var(--grass)}
+.ruler{position:absolute;left:0;top:0;bottom:14px;width:60px}
+.tick{position:absolute;left:0;width:100%;border-top:1px dashed var(--line);font-size:11px;color:var(--sub);padding-left:4px;line-height:1}
+.char{position:absolute;bottom:14px;left:50%;transform:translateX(-30%);transition:height .15s ease-out}
+.char svg{display:block;height:100%;width:auto}
+.char.pop{animation:pop .15s}
+@keyframes pop{50%{filter:brightness(1.15)}}
+.float{position:absolute;left:55%;font-weight:800;color:var(--ac);pointer-events:none;animation:up .8s forwards;font-size:18px}
+@keyframes up{to{transform:translateY(-70px);opacity:0}}
+.btn{width:100%;margin-top:12px;padding:16px;font-size:20px;font-weight:800;border:0;border-radius:14px;background:var(--ac);color:#fff;cursor:pointer;box-shadow:0 5px 0 #c9541f;touch-action:manipulation}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 #c9541f}
+.shop{margin-top:12px;display:grid;gap:8px}
+.item{display:flex;justify-content:space-between;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.item small{display:block;color:var(--sub)}
+.item button{border:0;border-radius:10px;padding:8px 12px;background:#2f9e6b;color:#fff;font-weight:700;cursor:pointer}
+.item button:disabled{background:var(--line);color:var(--sub);cursor:not-allowed}
+.reset{display:block;margin:14px auto 0;background:none;border:0;color:var(--sub);text-decoration:underline;cursor:pointer;font-size:12px}
 </style>
 </head>
 <body>
-<div id="app">
-  <div id="stage">
-    <canvas id="c" width="1400" height="800"></canvas>
-
-    <div id="blindoverlay"></div>
-
-    <div id="hud">
-      <div id="topbar">
-        <div class="score red">RED <span id="scoreR">0</span></div>
-        <div id="timer">5:30</div>
-        <div class="score blue"><span id="scoreB">0</span> BLUE</div>
-      </div>
-      <div id="hint">WASD 이동 · 마우스 조준 · SHIFT 달리기 · SPACE 태클 · E 드리블 · F 가드<br>좌클릭 슈팅 · 우클릭 펀치 · Q 아이템 드랍 · 1/2/3 아이템 사용</div>
-      <div id="msgcenter"><div id="bignote"></div></div>
-      <div id="bottombar">
-        <div id="statpanel">
-          <div class="barlabel"><span>HP</span><span id="hpTxt">15/15</span></div>
-          <div class="bar"><i class="hpfill" id="hpBar" style="width:100%"></i></div>
-          <div class="barlabel"><span>STAMINA</span><span id="stTxt">100</span></div>
-          <div class="bar"><i class="stamfill" id="stBar" style="width:100%"></i></div>
-          <div id="cds">
-            <span class="cd" id="cdTackle">태클 준비</span>
-            <span class="cd" id="cdDribble">드리블 준비</span>
-          </div>
-        </div>
-        <div id="slots">
-          <div class="slot"><span class="num">1</span><span class="ico" id="slot0">-</span><span class="ammo" id="ammo0"></span></div>
-          <div class="slot"><span class="num">2</span><span class="ico" id="slot1">-</span><span class="ammo" id="ammo1"></span></div>
-          <div class="slot"><span class="num">3</span><span class="ico" id="slot2">-</span><span class="ammo" id="ammo2"></span></div>
-        </div>
-      </div>
-    </div>
-
-    <div id="menu">
-      <h1>FOOTBALL <span>x</span> BOXING</h1>
-      <div class="sub">축구 + 복싱 하이브리드 매치</div>
-      <div class="panel">
-        <div class="row">
-          <label>참가 인원 (본인 포함)</label>
-          <span id="countVal">6</span>
-        </div>
-        <input type="range" id="countRange" min="2" max="8" value="6">
-        <div class="row" style="margin-top:16px;">
-          <label>모드</label>
-        </div>
-        <div class="modebtns">
-          <button id="modeAI" class="active">AI 모드</button>
-          <button id="modeMatch">랜덤매칭</button>
-        </div>
-        <button id="startBtn">경기 시작</button>
-        <div id="howto">
-          <b>목표</b> · 5분 30초 동안 상대 골대에 공을 넣어 더 많은 골을 넣으세요.<br>
-          <b>전투</b> · 펀치/아이템으로 상대를 쓰러뜨려 공을 뺏을 수 있습니다.<br>
-          <b>아이템</b> · 망치, 총, 칼, 회복 물약, 실명 포션이 필드에 주기적으로 등장합니다.
-        </div>
-        <div class="note" id="matchNote"></div>
-      </div>
-    </div>
-
-    <div id="endscreen">
-      <h2 id="endTitle">경기 종료</h2>
-      <p id="endSub">RED 0 : 0 BLUE</p>
-      <button id="restartBtn">다시 하기</button>
-    </div>
+<div class="app">
+  <h1>📏 이정원 키 키우기</h1>
+  <div class="sub">버튼을 눌러 정원이의 키를 쑥쑥 키워주세요!</div>
+  <div class="stats">
+    <div class="stat"><b id="h">150.0</b><span>현재 키 (cm)</span></div>
+    <div class="stat"><b id="pc">1</b><span>클릭당 +cm</span></div>
+    <div class="stat"><b id="ps">0</b><span>초당 +cm</span></div>
   </div>
+  <div class="title" id="title"></div>
+  <div class="stage" id="stage">
+    <div class="ruler" id="ruler"></div>
+    <div class="char" id="char">
+      <svg viewBox="0 0 60 120" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 30 Q8 50 12 70" stroke="#f1c6a0" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path d="M44 30 Q52 50 48 70" stroke="#f1c6a0" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <rect x="23" y="70" width="6" height="46" rx="3" fill="#3b4a72"/>
+        <rect x="31" y="70" width="6" height="46" rx="3" fill="#3b4a72"/>
+        <rect x="21" y="113" width="10" height="6" rx="3" fill="#222"/>
+        <rect x="29" y="113" width="10" height="6" rx="3" fill="#222"/>
+        <rect x="16" y="28" width="28" height="44" rx="8" fill="#ff7a45"/>
+        <text x="30" y="55" font-size="8" font-weight="800" text-anchor="middle" fill="#fff" font-family="sans-serif">정원</text>
+        <circle cx="30" cy="16" r="14" fill="#f8d7b5"/>
+        <path d="M16 14 Q18 1 30 2 Q42 1 44 14 Q36 7 16 14Z" fill="#2b2118"/>
+        <circle cx="25" cy="17" r="1.8" fill="#222"/>
+        <circle cx="35" cy="17" r="1.8" fill="#222"/>
+        <path d="M25 22 Q30 26 35 22" stroke="#222" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <circle cx="21" cy="21" r="2.2" fill="#ffb3a0" opacity=".7"/>
+        <circle cx="39" cy="21" r="2.2" fill="#ffb3a0" opacity=".7"/>
+      </svg>
+    </div>
+    <div class="ground"></div>
+  </div>
+  <button class="btn" id="grow">🥛 키 키우기!</button>
+  <div class="shop" id="shop"></div>
+  <button class="reset" id="reset">처음부터 다시 하기</button>
 </div>
-
 <script>
 (function(){
-"use strict";
+  var START=150, h=START, pc=1, ps=0, shopLv={};
+  var items=[
+    {id:'milk',name:'🥛 우유 한 잔',desc:'클릭당 +1cm',base:20,mul:1.5,apply:function(){pc+=1}},
+    {id:'stretch',name:'🧘 스트레칭 교실',desc:'초당 +1cm',base:50,mul:1.6,apply:function(){ps+=1}},
+    {id:'vit',name:'💊 성장 영양제',desc:'클릭당 +10cm',base:300,mul:1.7,apply:function(){pc+=10}},
+    {id:'tree',name:'🌱 마법의 콩나무',desc:'초당 +20cm',base:1000,mul:1.8,apply:function(){ps+=20}},
+    {id:'giant',name:'🧙 거인의 비법',desc:'클릭당 +200cm',base:8000,mul:1.9,apply:function(){pc+=200}}
+  ];
+  var titles=[[150,'평범한 정원이'],[170,'평균 키 돌파! 🙂'],[185,'농구 선수 급 🏀'],[220,'세계 최장신 도전 😮'],[300,'기린과 눈높이 맞춤 🦒'],[600,'2층 집보다 커요 🏠'],[2000,'빌딩 숲의 거인 🏙️'],[10000,'구름 위로 쑥 ☁️'],[100000,'성층권 돌파 🚀'],[1000000,'우주 거인 이정원 🌌']];
+  var $=function(i){return document.getElementById(i)};
+  var charEl=$('char'),stage=$('stage'),ruler=$('ruler');
 
-/* ============================================================
-   설정 & 상수
-============================================================ */
-const CV_W = 1400, CV_H = 800;
-const FX = 70, FY = 60, FW = 1260, FH = 680; // field rect
-const GOAL_HALF = 95; // goal mouth half-height
-const GOAL_DEPTH = 34;
-const MATCH_TIME = 330; // 5:30
-
-const WALK_SPEED = 150;
-const RUN_SPEED = 270;
-const RUN_DRAIN = 20; // stamina per sec while running
-const REGEN_RATE = 14; // stamina per sec
-const PLAYER_R = 19;
-const BALL_R = 9;
-const PICKUP_R = 30;
-const PUNCH_RANGE = 46;
-const PUNCH_ARC = 0.9; // radians half-angle
-const PUNCH_DMG = 3;
-const PUNCH_DMG_GUARD = 1.5;
-const PUNCH_CD = 0.55;
-const TACKLE_CD = 2.2;
-const TACKLE_DASH_SPEED = 560;
-const TACKLE_DASH_TIME = 0.22;
-const DRIBBLE_CD = 1.1;
-const DRIBBLE_TIME = 0.35;
-const SHOOT_SPEED = 620;
-const BULLET_SPEED = 720;
-const THROW_SPEED = 480;
-const ITEM_SPAWN_INTERVAL = 60;
-const MAX_FIELD_ITEMS = 6;
-const DROP_SELF_COOLDOWN = 1.5;
-const MAX_HP = 15;
-const MAX_STAM = 100;
-
-const ITEM_TYPES = ["hammer","gun","knife","potion","blind"];
-const ITEM_ICON = {hammer:"🔨", gun:"🔫", knife:"🔪", potion:"🧪", blind:"🌫️"};
-
-function now(){ return performance.now()/1000; }
-function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
-function dist(x1,y1,x2,y2){ return Math.hypot(x2-x1,y2-y1); }
-function angDiff(a,b){ let d=a-b; while(d>Math.PI)d-=Math.PI*2; while(d<-Math.PI)d+=Math.PI*2; return d; }
-
-/* ============================================================
-   상태
-============================================================ */
-let state = "menu"; // menu | playing | ended
-let entities = [];
-let ball = null;
-let fieldItems = []; // {id,x,y,type,droppedBy,droppedAt}
-let bullets = []; // {x,y,vx,vy,ownerId,team}
-let thrown = []; // blind potions {x,y,vx,vy,ownerId,team}
-let itemSpawnTimer = 0;
-let timeLeft = MATCH_TIME;
-let scoreR = 0, scoreB = 0;
-let goalFreezeUntil = 0;
-let idCounter = 1;
-let human = null;
-let lastTs = 0;
-
-const keys = {};
-let mouseWX = CV_W/2, mouseWY = CV_H/2;
-let mouseDownL = false, mouseDownR = false;
-let clickQueueL = false, clickQueueR = false;
-
-/* ============================================================
-   DOM refs
-============================================================ */
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-const menuEl = document.getElementById('menu');
-const endEl = document.getElementById('endscreen');
-const countRange = document.getElementById('countRange');
-const countVal = document.getElementById('countVal');
-const modeAIBtn = document.getElementById('modeAI');
-const modeMatchBtn = document.getElementById('modeMatch');
-const matchNote = document.getElementById('matchNote');
-const startBtn = document.getElementById('startBtn');
-const restartBtn = document.getElementById('restartBtn');
-const blindOverlay = document.getElementById('blindoverlay');
-
-let selectedMode = "ai";
-countRange.addEventListener('input', ()=>{ countVal.textContent = countRange.value; });
-modeAIBtn.addEventListener('click', ()=>{
-  selectedMode="ai"; modeAIBtn.classList.add('active'); modeMatchBtn.classList.remove('active');
-  matchNote.textContent = "";
-});
-modeMatchBtn.addEventListener('click', ()=>{
-  selectedMode="match"; modeMatchBtn.classList.add('active'); modeAIBtn.classList.remove('active');
-  matchNote.textContent = "※ 온라인 랜덤매칭은 서버가 필요해 이 버전에서는 지원되지 않아 빈 자리를 AI가 채웁니다.";
-});
-startBtn.addEventListener('click', ()=>{ startGame(parseInt(countRange.value,10)); });
-restartBtn.addEventListener('click', ()=>{
-  endEl.style.display = 'none';
-  menuEl.style.display = 'flex';
-  state = "menu";
-});
-
-/* ============================================================
-   입력
-============================================================ */
-window.addEventListener('keydown', (e)=>{
-  const k = e.key.toLowerCase();
-  if(["w","a","s","d","shift"," ","e","f","q","1","2","3"].includes(k)) e.preventDefault();
-  if(keys[k]) return; // already held -> ignore repeat for edge-triggered actions
-  keys[k] = true;
-  if(state!=="playing" || !human) return;
-  if(k===" ") tryTackle(human);
-  if(k==="e") tryDribble(human);
-  if(k==="q") tryDrop(human);
-  if(k==="1") tryUseItem(human,0);
-  if(k==="2") tryUseItem(human,1);
-  if(k==="3") tryUseItem(human,2);
-});
-window.addEventListener('keyup', (e)=>{ keys[e.key.toLowerCase()] = false; });
-
-canvas.addEventListener('mousemove', (e)=>{
-  const r = canvas.getBoundingClientRect();
-  mouseWX = (e.clientX-r.left) * (CV_W/r.width);
-  mouseWY = (e.clientY-r.top) * (CV_H/r.height);
-});
-canvas.addEventListener('mousedown', (e)=>{
-  if(e.button===0){ mouseDownL=true; clickQueueL=true; }
-  if(e.button===2){ mouseDownR=true; clickQueueR=true; }
-});
-window.addEventListener('mouseup', (e)=>{
-  if(e.button===0) mouseDownL=false;
-  if(e.button===2) mouseDownR=false;
-});
-canvas.addEventListener('contextmenu', (e)=> e.preventDefault());
-
-/* ============================================================
-   엔티티 생성
-============================================================ */
-function makePlayer(team, isHuman, idx, totalOnTeam){
-  const spawnX = team==='R' ? FX + FW*0.28 : FX + FW*0.72;
-  const spread = FH*0.6;
-  const spawnY = FY + FH/2 + ( (idx - (totalOnTeam-1)/2) * (spread/Math.max(totalOnTeam,1)) );
-  return {
-    id: idCounter++,
-    team, isHuman,
-    x: spawnX, y: clamp(spawnY, FY+30, FY+FH-30),
-    spawnX, spawnY: clamp(spawnY, FY+30, FY+FH-30),
-    angle: team==='R' ? 0 : Math.PI,
-    moveAngle: team==='R' ? 0 : Math.PI,
-    hp: MAX_HP, maxHp: MAX_HP,
-    stamina: MAX_STAM, maxStamina: MAX_STAM,
-    isRunning:false,
-    staminaHitZero:false,
-    stoppedRunningAt: now(),
-    guarding:false,
-    knockedDownUntil:0, knockdownStart:0,
-    tackleCdUntil:0, tackleDashUntil:0, tackleDashAng:0,
-    dribbleCdUntil:0, dribbleUntil:0,
-    punchCdUntil:0,
-    items:[null,null,null],
-    fx:{ slowUntil:0, noStamRegenUntil:0, noRunUntil:0, blindUntil:0,
-         gunTicksLeft:0, gunNextTick:0 },
-    aiTimer: Math.random()*0.4,
-    aiState:"chase",
-    speedMult: isHuman ? 1 : (0.86 + Math.random()*0.1),
-    color: team==='R' ? '#e8462e' : '#2e8ce8',
-    name: isHuman ? "YOU" : (team==='R'?"RED":"BLUE")+"-"+idx
+  function fmt(n){
+    if(n>=1e5) return (n/100).toLocaleString('ko-KR',{maximumFractionDigits:0})+' m';
+    return n.toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1});
+  }
+  function cost(it){var l=shopLv[it.id]||0;return Math.floor(it.base*Math.pow(it.mul,l))}
+  function nice(v){var p=Math.pow(10,Math.floor(Math.log10(v)));var m=v/p;return (m<2?1:m<5?2:5)*p}
+  function drawRuler(view){
+    var step=nice(view/5),html='';
+    for(var v=step;v<view;v+=step){
+      var y=v/view*100;
+      html+='<div class="tick" style="bottom:calc('+y+'% * (326/340))">'+(v>=100000?(v/100000)+'km':v>=100?(v/100)+'m':v+'cm')+'</div>';
+    }
+    ruler.innerHTML=html;
+  }
+  function render(){
+    var view=Math.max(220,h*1.2);
+    var px=Math.max(30,h/view*(stage.clientHeight-14));
+    charEl.style.height=px+'px';
+    $('h').textContent=fmt(h);
+    $('pc').textContent=pc.toLocaleString('ko-KR');
+    $('ps').textContent=ps.toLocaleString('ko-KR');
+    var t=titles[0][1];
+    for(var i=0;i<titles.length;i++) if(h>=titles[i][0]) t=titles[i][1];
+    $('title').textContent=t;
+    drawRuler(view);
+    items.forEach(function(it){
+      var b=document.getElementById('b_'+it.id);
+      b.disabled=h-START<cost(it);
+      document.getElementById('c_'+it.id).textContent=cost(it).toLocaleString('ko-KR')+'cm';
+      document.getElementById('l_'+it.id).textContent=(shopLv[it.id]||0);
+    });
+  }
+  function buildShop(){
+    var s=$('shop');s.innerHTML='';
+    items.forEach(function(it){
+      var d=document.createElement('div');d.className='item';
+      d.innerHTML='<div><b>'+it.name+'</b> <small>Lv.<span id="l_'+it.id+'">0</span> · '+it.desc+'</small></div><button id="b_'+it.id+'">구매 <span id="c_'+it.id+'"></span></button>';
+      s.appendChild(d);
+      d.querySelector('button').onclick=function(){
+        var c=cost(it);
+        if(h-START>=c){h-=c;shopLv[it.id]=(shopLv[it.id]||0)+1;it.apply();render()}
+      };
+    });
+  }
+  function pop(txt){
+    var f=document.createElement('div');f.className='float';f.textContent=txt;
+    f.style.left=(45+Math.random()*20)+'%';f.style.bottom=(charEl.clientHeight+20)+'px';
+    if(parseFloat(f.style.bottom)>stage.clientHeight-30)f.style.bottom=(stage.clientHeight-40)+'px';
+    stage.appendChild(f);setTimeout(function(){f.remove()},800);
+  }
+  $('grow').onclick=function(){
+    h+=pc;pop('+'+pc+'cm');
+    charEl.classList.remove('pop');void charEl.offsetWidth;charEl.classList.add('pop');
+    render();
   };
-}
-
-function resetPositions(){
-  entities.forEach(p=>{
-    p.x = p.spawnX; p.y = p.spawnY;
-    p.hp = p.maxHp; p.stamina = p.maxStamina;
-    p.knockedDownUntil = 0;
-    p.items = [null,null,null];
-    p.fx = { slowUntil:0, noStamRegenUntil:0, noRunUntil:0, blindUntil:0, gunTicksLeft:0, gunNextTick:0 };
-  });
-  ball.x = FX+FW/2; ball.y = FY+FH/2; ball.vx=0; ball.vy=0; ball.owner=null;
-  bullets = []; thrown = [];
-}
-
-/* ============================================================
-   게임 시작
-============================================================ */
-function startGame(count){
-  entities = [];
-  idCounter = 1;
-  const redCount = Math.ceil(count/2);
-  const blueCount = count - redCount;
-  for(let i=0;i<redCount;i++){
-    const isHuman = i===0;
-    const p = makePlayer('R', isHuman, i, redCount);
-    entities.push(p);
-    if(isHuman) human = p;
-  }
-  for(let i=0;i<blueCount;i++){
-    entities.push(makePlayer('B', false, i, blueCount));
-  }
-  ball = {x:FX+FW/2, y:FY+FH/2, vx:0, vy:0, owner:null, lastTouchTeam:null};
-  fieldItems = []; bullets=[]; thrown=[];
-  itemSpawnTimer = ITEM_SPAWN_INTERVAL - 15; // first item comes a bit sooner
-  timeLeft = MATCH_TIME;
-  scoreR = 0; scoreB = 0;
-  goalFreezeUntil = 0;
-  state = "playing";
-  menuEl.style.display = 'none';
-  endEl.style.display = 'none';
-  lastTs = now();
-  requestAnimationFrame(loop);
-}
-
-/* ============================================================
-   액션들
-============================================================ */
-function facingVec(p){
-  return [Math.cos(p.angle), Math.sin(p.angle)];
-}
-
-function tryTackle(p){
-  const t = now();
-  if(t < p.tackleCdUntil) return;
-  if(p.knockedDownUntil > t) return;
-  p.tackleCdUntil = t + TACKLE_CD;
-  p.tackleDashUntil = t + TACKLE_DASH_TIME;
-  p.tackleDashAng = p.isHuman ? p.angle : p.moveAngle;
-}
-
-function tryDribble(p){
-  const t = now();
-  if(t < p.dribbleCdUntil) return;
-  if(p.knockedDownUntil > t) return;
-  p.dribbleCdUntil = t + DRIBBLE_CD;
-  p.dribbleUntil = t + DRIBBLE_TIME;
-}
-
-function tryDrop(p){
-  const t = now();
-  const idx = p.items.findIndex(it=>it);
-  if(idx===-1) return;
-  const it = p.items[idx];
-  p.items[idx] = null;
-  fieldItems.push({id:idCounter++, x:p.x, y:p.y, type:it.type, ammo:it.ammo, droppedBy:p.id, droppedAt:t});
-}
-
-function firstEmptySlot(p){ return p.items.findIndex(s=>!s); }
-
-function pickupItem(p, item){
-  const slot = firstEmptySlot(p);
-  if(slot===-1) return false;
-  p.items[slot] = {type:item.type, ammo: item.type==='gun' ? 3 : undefined};
-  return true;
-}
-
-function tryUseItem(p, slot){
-  const t = now();
-  if(p.knockedDownUntil > t) return;
-  const it = p.items[slot];
-  if(!it) return;
-  const [fx,fy] = facingVec(p);
-  if(it.type === 'potion'){
-    p.hp = p.maxHp;
-    p.items[slot] = null;
-  } else if(it.type === 'hammer'){
-    swingMelee(p, 58, 1.1, (target)=>{
-      if(ball.owner===target.id){ ball.owner=null; ball.vx=fx*40; ball.vy=fy*40; }
-      const kb = 420;
-      target.x = clamp(target.x + fx*kb*0.35, FX-30, FX+FW+30);
-      target.y = clamp(target.y + fy*kb*0.35, FY+5, FY+FH-5);
-      target.fx.slowUntil = Math.max(target.fx.slowUntil, t+0.4);
-      spawnFloatText(target.x, target.y-30, "쾅!", '#f2c14e');
-    });
-    p.items[slot] = null;
-  } else if(it.type === 'knife'){
-    swingMelee(p, 50, 0.9, (target)=>{
-      target.fx.slowUntil = Math.max(target.fx.slowUntil, t+5);
-      target.fx.noStamRegenUntil = Math.max(target.fx.noStamRegenUntil, t+5);
-      target.fx.noRunUntil = Math.max(target.fx.noRunUntil, t+5);
-      spawnFloatText(target.x, target.y-30, "칼에 찔림!", '#ff6b6b');
-    });
-    p.items[slot] = null;
-  } else if(it.type === 'gun'){
-    bullets.push({x:p.x+fx*24, y:p.y+fy*24, vx:fx*BULLET_SPEED, vy:fy*BULLET_SPEED, ownerId:p.id, team:p.team, life:1.2});
-    it.ammo -= 1;
-    if(it.ammo<=0) p.items[slot] = null;
-  } else if(it.type === 'blind'){
-    thrown.push({x:p.x+fx*24, y:p.y+fy*24, vx:fx*THROW_SPEED, vy:fy*THROW_SPEED, ownerId:p.id, team:p.team, life:1.3});
-    p.items[slot] = null;
-  }
-}
-
-function swingMelee(p, range, arc, onHit){
-  const t = now();
-  entities.forEach(target=>{
-    if(target.id===p.id) return;
-    if(target.knockedDownUntil>t) return;
-    const d = dist(p.x,p.y,target.x,target.y);
-    if(d>range+PLAYER_R) return;
-    const ang = Math.atan2(target.y-p.y, target.x-p.x);
-    const facing = p.isHuman ? p.angle : p.moveAngle;
-    if(Math.abs(angDiff(ang,facing)) > arc) return;
-    onHit(target);
-  });
-}
-
-function doPunch(p){
-  const t = now();
-  if(t < p.punchCdUntil) return;
-  if(p.knockedDownUntil > t) return;
-  p.punchCdUntil = t + PUNCH_CD;
-  swingMelee(p, PUNCH_RANGE, PUNCH_ARC, (target)=>{
-    const dmg = target.guarding ? PUNCH_DMG_GUARD : PUNCH_DMG;
-    applyDamage(target, dmg, p);
-    // small knockback on hit
-    const ang = Math.atan2(target.y-p.y, target.x-p.x);
-    target.x = clamp(target.x + Math.cos(ang)*14, FX-30, FX+FW+30);
-    target.y = clamp(target.y + Math.sin(ang)*14, FY+5, FY+FH-5);
-    spawnFloatText(target.x, target.y-30, "-"+dmg, '#ffb3a1');
-  });
-}
-
-function applyDamage(target, dmg, source){
-  const t = now();
-  if(target.knockedDownUntil>t) return;
-  target.hp -= dmg;
-  if(target.hp <= 0){
-    target.hp = 0;
-    target.knockedDownUntil = t + 3.0;
-    target.knockdownStart = t;
-    if(ball.owner===target.id){
-      ball.owner = null;
-      ball.vx = (Math.random()-0.5)*60; ball.vy=(Math.random()-0.5)*60;
-    }
-    spawnFloatText(target.x, target.y-46, "K.O.", '#ff3b3b');
-  }
-}
-
-function doShoot(p){
-  const t = now();
-  if(ball.owner !== p.id) return;
-  const facing = p.isHuman ? p.angle : p.moveAngle;
-  ball.owner = null;
-  ball.vx = Math.cos(facing)*SHOOT_SPEED;
-  ball.vy = Math.sin(facing)*SHOOT_SPEED;
-  ball.lastTouchTeam = p.team;
-  ball.shotAt = t;
-  ball.shooterId = p.id;
-}
-
-/* ============================================================
-   플로팅 텍스트
-============================================================ */
-let floatTexts = [];
-function spawnFloatText(x,y,txt,color){
-  floatTexts.push({x,y,txt,color,born:now()});
-}
-function bigNote(txt, color){
-  const el = document.getElementById('bignote');
-  el.textContent = txt;
-  el.style.color = color || '#f2c14e';
-  el.style.transition = 'none';
-  el.style.opacity = '1';
-  el.style.transform = 'translateY(-10px) scale(1.05)';
-  requestAnimationFrame(()=>{
-    el.style.transition = 'opacity 1.1s ease, transform 1.1s ease';
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(10px) scale(1)';
-  });
-}
-
-/* ============================================================
-   AI 로직
-============================================================ */
-function attackGoalX(team){ return team==='R' ? FX+FW : FX; }
-function defendGoalX(team){ return team==='R' ? FX : FX+FW; }
-
-function updateAI(p, dt){
-  const t = now();
-  if(p.knockedDownUntil>t) return {mx:0,my:0,run:false,guard:false,speedScale:1};
-  p.aiTimer -= dt;
-  let mx=0,my=0,run=false,guard=false,speedScale=1;
-
-  const goalX = attackGoalX(p.team);
-  const goalY = FY+FH/2;
-
-  if(ball.owner===p.id){
-    // 드리블 하며 골대로 이동, 사거리 안이면 슛 (가까이 있으면 굳이 전력질주 안 함)
-    const d2goal = dist(p.x,p.y,goalX,goalY);
-    p.moveAngle = Math.atan2(goalY-p.y, goalX-p.x);
-    mx = Math.cos(p.moveAngle); my = Math.sin(p.moveAngle);
-    run = d2goal>260;
-    if(d2goal < 230 && Math.random()<0.045){ doShoot(p); }
-    if(p.aiTimer<=0){
-      p.aiTimer = 0.5+Math.random()*0.6;
-      // 근처 적 있으면 아이템 사용 시도
-      maybeUseAIItem(p);
-    }
-  } else if(ball.owner && entities.find(e=>e.id===ball.owner)?.team===p.team){
-    // 팀 지원: 앞쪽 공간으로 전진 (천천히)
-    const support = attackGoalX(p.team);
-    p.moveAngle = Math.atan2((goalY+ (Math.sin(t+p.id)*80)) - p.y, support - p.x);
-    mx = Math.cos(p.moveAngle); my = Math.sin(p.moveAngle);
-    speedScale = 0.55;
-    run=false;
-  } else if(ball.owner && entities.find(e=>e.id===ball.owner)?.team!==p.team){
-    // 공격 저지: 공 주인 쪽으로 이동, 가까우면 태클/펀치
-    const owner = entities.find(e=>e.id===ball.owner);
-    if(owner){
-      p.moveAngle = Math.atan2(owner.y-p.y, owner.x-p.x);
-      mx=Math.cos(p.moveAngle); my=Math.sin(p.moveAngle);
-      const d = dist(p.x,p.y,owner.x,owner.y);
-      run = d>220;
-      if(d < 60){
-        if(t>p.tackleCdUntil && Math.random()<0.05) tryTackle(p);
-        else if(Math.random()<0.02) doPunch(p);
-      }
-    }
-  } else {
-    // 자유공: 공으로 이동 (너무 가까우면 걷기만 함)
-    p.moveAngle = Math.atan2(ball.y-p.y, ball.x-p.x);
-    mx = Math.cos(p.moveAngle); my = Math.sin(p.moveAngle);
-    run = dist(p.x,p.y,ball.x,ball.y) > 200;
-  }
-
-  // 낮은 체력이면 물약 사용
-  if(p.hp <= 5){
-    const potIdx = p.items.findIndex(it=>it && it.type==='potion');
-    if(potIdx!==-1) tryUseItem(p, potIdx);
-  }
-
-  return {mx,my,run,guard,speedScale};
-}
-
-function maybeUseAIItem(p){
-  const slot = p.items.findIndex(it=>it);
-  if(slot===-1) return;
-  const type = p.items[slot].type;
-  if(type==='gun' || type==='blind' || type==='hammer' || type==='knife'){
-    // 가까운 적 있으면 사용
-    const nearEnemy = entities.find(e=>e.team!==p.team && e.knockedDownUntil<now() && dist(p.x,p.y,e.x,e.y)<260);
-    if(nearEnemy){
-      p.moveAngle = Math.atan2(nearEnemy.y-p.y, nearEnemy.x-p.x);
-      tryUseItem(p, slot);
-    }
-  }
-}
-
-/* ============================================================
-   메인 업데이트
-============================================================ */
-function updatePlayer(p, dt){
-  const t = now();
-
-  if(p.knockedDownUntil > t){
-    const progress = clamp((t - p.knockdownStart)/3.0, 0, 1);
-    p.hp = p.maxHp * progress;
-    return;
-  } else if(p.hp < p.maxHp && p.knockdownStart && t - p.knockedDownUntil < 0.05){
-    p.hp = p.maxHp; // 완전히 일어남
-  }
-
-  let mx=0,my=0,run=false,aiSpeedScale=1;
-
-  if(p.isHuman){
-    if(keys['w']) my -= 1;
-    if(keys['s']) my += 1;
-    if(keys['a']) mx -= 1;
-    if(keys['d']) mx += 1;
-    p.angle = Math.atan2(mouseWY-p.y, mouseWX-p.x);
-    if(mx!==0||my!==0) p.moveAngle = Math.atan2(my,mx);
-    run = !!keys['shift'];
-    p.guarding = !!keys['f'];
-  } else {
-    const r = updateAI(p, dt);
-    mx=r.mx; my=r.my; run=r.run; p.guarding=false; aiSpeedScale = r.speedScale!=null ? r.speedScale : 1;
-  }
-
-  // 태클 대시 처리 (이동 입력 무시하고 돌진)
-  if(p.tackleDashUntil > t){
-    mx = Math.cos(p.tackleDashAng);
-    my = Math.sin(p.tackleDashAng);
-    const spd = TACKLE_DASH_SPEED;
-    p.x = clamp(p.x + mx*spd*dt, FX-30, FX+FW+30);
-    p.y = clamp(p.y + my*spd*dt, FY+5, FY+FH-5);
-    // 충돌 판정: 상대 태클
-    entities.forEach(o=>{
-      if(o.id===p.id) return;
-      if(dist(p.x,p.y,o.x,o.y) < PLAYER_R*1.7){
-        if(o.dribbleUntil > t) return; // 드리블 회피 성공
-        if(ball.owner===o.id){
-          ball.owner = p.id;
-          spawnFloatText(o.x,o.y-30,"태클!",'#f2c14e');
-        }
-        const ang = Math.atan2(o.y-p.y,o.x-p.x);
-        o.x = clamp(o.x+Math.cos(ang)*18, FX-30, FX+FW+30);
-        o.y = clamp(o.y+Math.sin(ang)*18, FY+5, FY+FH-5);
-      }
-    });
-    updateStamina(p, dt, false);
-    clampField(p);
-    return;
-  }
-
-  // 이펙트 적용
-  const slowed = p.fx.slowUntil > t;
-  const noRun = p.fx.noRunUntil > t || p.guarding;
-  let speed = WALK_SPEED;
-  const canRun = run && !noRun && p.stamina>0 && (mx!==0||my!==0);
-  if(canRun) speed = RUN_SPEED;
-  if(slowed) speed *= 0.5;
-  if(p.guarding) speed *= 0.6;
-  speed *= p.speedMult;
-  if(!p.isHuman) speed *= aiSpeedScale;
-
-  const len = Math.hypot(mx,my);
-  if(len>0){ mx/=len; my/=len; }
-
-  p.x = clamp(p.x + mx*speed*dt, FX-30, FX+FW+30);
-  p.y = clamp(p.y + my*speed*dt, FY+5, FY+FH-5);
-
-  p.isRunning = canRun;
-  updateStamina(p, dt, canRun);
-
-  // 총상 DOT
-  if(p.fx.gunTicksLeft>0 && t>=p.fx.gunNextTick){
-    p.fx.gunTicksLeft -= 1;
-    p.fx.gunNextTick = t + 0.5;
-    p.maxHp = Math.max(5, p.maxHp-1);
-    p.maxStamina = Math.max(20, p.maxStamina-1);
-    p.hp = Math.max(0, Math.min(p.hp-1, p.maxHp));
-    p.stamina = Math.max(0, Math.min(p.stamina-1, p.maxStamina));
-    if(p.hp<=0) applyDamage(p, 0, null);
-  }
-}
-
-function updateStamina(p, dt, running){
-  const t = now();
-  if(running){
-    p.stamina -= RUN_DRAIN*dt;
-    if(p.stamina<=0){ p.stamina=0; p.staminaHitZero=true; }
-    p.stoppedRunningAt = t; // continuously pushed while running
-  } else {
-    if(p.stamina < p.maxStamina && p.fx.noStamRegenUntil <= t){
-      const delay = p.staminaHitZero ? 2.0 : 1.0;
-      if(t - p.stoppedRunningAt >= delay){
-        p.stamina = clamp(p.stamina + REGEN_RATE*dt, 0, p.maxStamina);
-        if(p.stamina>=p.maxStamina) p.staminaHitZero=false;
-      }
-    }
-  }
-}
-
-function clampField(p){
-  p.x = clamp(p.x, FX-30, FX+FW+30);
-  p.y = clamp(p.y, FY+5, FY+FH-5);
-}
-
-function updateBall(dt){
-  const t = now();
-  if(ball.owner!=null){
-    const owner = entities.find(e=>e.id===ball.owner);
-    if(!owner || owner.knockedDownUntil>t){ ball.owner=null; }
-    else {
-      const facing = owner.isHuman ? owner.angle : owner.moveAngle;
-      ball.x = owner.x + Math.cos(facing)*28;
-      ball.y = owner.y + Math.sin(facing)*28;
-      ball.vx=0; ball.vy=0;
-      return;
-    }
-  }
-  // 자유 이동
-  ball.x += ball.vx*dt; ball.y += ball.vy*dt;
-  ball.vx *= 0.985; ball.vy *= 0.985;
-  if(Math.hypot(ball.vx,ball.vy) < 4){ ball.vx=0; ball.vy=0; }
-
-  if(ball.y < FY+BALL_R){ ball.y=FY+BALL_R; ball.vy*=-0.6; }
-  if(ball.y > FY+FH-BALL_R){ ball.y=FY+FH-BALL_R; ball.vy*=-0.6; }
-
-  // 골 판정
-  if(ball.y > FY+FH/2-GOAL_HALF && ball.y < FY+FH/2+GOAL_HALF){
-    if(ball.x < FX-GOAL_DEPTH+10){ scoreGoal('B'); return; }
-    if(ball.x > FX+FW+GOAL_DEPTH-10){ scoreGoal('R'); return; }
-  }
-  ball.x = clamp(ball.x, FX-GOAL_DEPTH, FX+FW+GOAL_DEPTH);
-
-  // 플레이어와 충돌 (맞으면 밀림)
-  const speed = Math.hypot(ball.vx,ball.vy);
-  entities.forEach(pl=>{
-    if(pl.knockedDownUntil>t) return;
-    if(ball.shooterId===pl.id && t-ball.shotAt<0.12) return;
-    if(dist(ball.x,ball.y,pl.x,pl.y) < PLAYER_R+BALL_R){
-      if(speed>120){
-        const ang = Math.atan2(pl.y-ball.y, pl.x-ball.x);
-        pl.x = clamp(pl.x+Math.cos(ang)*26, FX-30, FX+FW+30);
-        pl.y = clamp(pl.y+Math.sin(ang)*26, FY+5, FY+FH-5);
-        ball.vx*=0.4; ball.vy*=0.4;
-      }
-      ball.owner = pl.id;
-      ball.vx=0; ball.vy=0;
-    }
-  });
-
-  // 자유 볼 자동 획득
-  if(ball.owner==null){
-    entities.forEach(pl=>{
-      if(pl.knockedDownUntil>t) return;
-      if(dist(ball.x,ball.y,pl.x,pl.y) < PICKUP_R){
-        ball.owner = pl.id;
-      }
-    });
-  }
-}
-
-function scoreGoal(team){
-  if(team==='R') scoreR++; else scoreB++;
-  document.getElementById('scoreR').textContent = scoreR;
-  document.getElementById('scoreB').textContent = scoreB;
-  bigNote((team==='R'?"RED":"BLUE")+" GOAL!", team==='R' ? '#e8462e' : '#2e8ce8');
-  goalFreezeUntil = now()+1.4;
-  resetPositions();
-}
-
-function updateBullets(dt){
-  const t = now();
-  bullets = bullets.filter(b=>{
-    b.life -= dt; if(b.life<=0) return false;
-    b.x += b.vx*dt; b.y += b.vy*dt;
-    if(b.x<FX-50||b.x>FX+FW+50||b.y<FY-50||b.y>FY+FH+50) return false;
-    for(const pl of entities){
-      if(pl.id===b.ownerId) continue;
-      if(pl.knockedDownUntil>t) continue;
-      if(dist(b.x,b.y,pl.x,pl.y) < PLAYER_R){
-        pl.fx.gunTicksLeft = 5;
-        pl.fx.gunNextTick = t;
-        spawnFloatText(pl.x,pl.y-30,"명중!",'#ff8a6b');
-        return false;
-      }
-    }
-    return true;
-  });
-}
-
-function updateThrown(dt){
-  const t = now();
-  thrown = thrown.filter(b=>{
-    b.life -= dt; if(b.life<=0) return false;
-    b.x += b.vx*dt; b.y += b.vy*dt;
-    b.vx*=0.99; b.vy*=0.99;
-    if(b.x<FX-50||b.x>FX+FW+50||b.y<FY-50||b.y>FY+FH+50) return false;
-    for(const pl of entities){
-      if(pl.id===b.ownerId) continue;
-      if(dist(b.x,b.y,pl.x,pl.y) < PLAYER_R+8){
-        pl.fx.blindUntil = t+4;
-        spawnFloatText(pl.x,pl.y-30,"실명!",'#c9c9ff');
-        return false;
-      }
-    }
-    return true;
-  });
-}
-
-function updateItemsField(dt){
-  itemSpawnTimer += dt;
-  if(itemSpawnTimer >= ITEM_SPAWN_INTERVAL && fieldItems.length < MAX_FIELD_ITEMS){
-    itemSpawnTimer = 0;
-    const type = ITEM_TYPES[Math.floor(Math.random()*ITEM_TYPES.length)];
-    const x = FX+40+Math.random()*(FW-80);
-    const y = FY+30+Math.random()*(FH-60);
-    fieldItems.push({id:idCounter++, x,y, type, ammo: type==='gun'?3:undefined});
-  }
-  const t = now();
-  fieldItems = fieldItems.filter(it=>{
-    let taken = false;
-    entities.forEach(pl=>{
-      if(taken) return;
-      if(pl.knockedDownUntil>t) return;
-      if(it.droppedBy===pl.id && t-it.droppedAt < DROP_SELF_COOLDOWN) return;
-      if(dist(it.x,it.y,pl.x,pl.y) < PICKUP_R){
-        if(pickupItem(pl, it)) taken = true;
-      }
-    });
-    return !taken;
-  });
-}
-
-/* ============================================================
-   메인 루프
-============================================================ */
-function loop(){
-  if(state!=="playing"){ return; }
-  const t = now();
-  let dt = t - lastTs; lastTs = t;
-  dt = clamp(dt, 0, 0.05);
-
-  if(goalFreezeUntil <= t){
-    timeLeft -= dt;
-    if(timeLeft<=0){ timeLeft=0; endGame(); }
-
-    entities.forEach(p=>updatePlayer(p,dt));
-    updateBall(dt);
-    updateBullets(dt);
-    updateThrown(dt);
-    updateItemsField(dt);
-
-    if(human){
-      if(clickQueueL){ doShoot(human); }
-      if(clickQueueR){ doPunch(human); }
-    }
-  }
-  clickQueueL = false; clickQueueR = false;
-
-  render();
-  updateHUD();
-
-  if(state==="playing") requestAnimationFrame(loop);
-}
-
-function endGame(){
-  state = "ended";
-  const title = scoreR===scoreB ? "무승부!" : (scoreR>scoreB ? "RED 팀 승리!" : "BLUE 팀 승리!");
-  document.getElementById('endTitle').textContent = title;
-  document.getElementById('endSub').textContent = `RED ${scoreR} : ${scoreB} BLUE`;
-  endEl.style.display = 'flex';
-}
-
-/* ============================================================
-   렌더링
-============================================================ */
-function drawField(){
-  ctx.fillStyle = '#04140a';
-  ctx.fillRect(0,0,CV_W,CV_H);
-
-  // stripes
-  const stripes = 12;
-  for(let i=0;i<stripes;i++){
-    ctx.fillStyle = i%2===0 ? 'var(--pitch-a)' : 'var(--pitch-b)';
-    ctx.fillStyle = i%2===0 ? '#173821' : '#122d1b';
-    ctx.fillRect(FX + i*(FW/stripes), FY, FW/stripes, FH);
-  }
-
-  ctx.strokeStyle = 'rgba(233,245,236,0.75)';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(FX,FY,FW,FH);
-  ctx.beginPath(); ctx.moveTo(FX+FW/2,FY); ctx.lineTo(FX+FW/2,FY+FH); ctx.stroke();
-  ctx.beginPath(); ctx.arc(FX+FW/2,FY+FH/2, 70, 0, Math.PI*2); ctx.stroke();
-
-  // goals
-  ctx.strokeStyle = '#e8462e';
-  ctx.strokeRect(FX-GOAL_DEPTH, FY+FH/2-GOAL_HALF, GOAL_DEPTH, GOAL_HALF*2);
-  ctx.strokeStyle = '#2e8ce8';
-  ctx.strokeRect(FX+FW, FY+FH/2-GOAL_HALF, GOAL_DEPTH, GOAL_HALF*2);
-
-  // penalty boxes
-  ctx.strokeStyle = 'rgba(233,245,236,0.4)';
-  ctx.strokeRect(FX, FY+FH/2-160, 130, 320);
-  ctx.strokeRect(FX+FW-130, FY+FH/2-160, 130, 320);
-}
-
-function drawPlayer(p){
-  const t = now();
-  const knocked = p.knockedDownUntil > t;
-  ctx.save();
-  ctx.translate(p.x,p.y);
-
-  if(knocked){
-    ctx.rotate(Math.PI/2);
-    ctx.globalAlpha = 0.75;
-  }
-
-  // body
-  ctx.beginPath();
-  ctx.arc(0,0,PLAYER_R,0,Math.PI*2);
-  ctx.fillStyle = p.color;
-  ctx.fill();
-  ctx.lineWidth=3;
-  ctx.strokeStyle = p.isHuman ? '#f2c14e' : 'rgba(0,0,0,0.4)';
-  ctx.stroke();
-
-  if(!knocked){
-    const facing = p.isHuman ? p.angle : p.moveAngle;
-    ctx.rotate(facing);
-    ctx.beginPath();
-    ctx.moveTo(PLAYER_R-2,0);
-    ctx.lineTo(PLAYER_R+10,-6);
-    ctx.lineTo(PLAYER_R+10,6);
-    ctx.closePath();
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-  }
-
-  if(p.guarding){
-    ctx.beginPath();
-    ctx.arc(0,0,PLAYER_R+5,0,Math.PI*2);
-    ctx.strokeStyle = 'rgba(242,193,78,0.8)';
-    ctx.lineWidth=2;
-    ctx.stroke();
-  }
-  if(p.dribbleUntil>t){
-    ctx.beginPath();
-    ctx.arc(0,0,PLAYER_R+8,0,Math.PI*2);
-    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-    ctx.setLineDash([4,4]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-  ctx.restore();
-
-  // HP bar over head
-  ctx.save();
-  ctx.translate(p.x - 18, p.y - PLAYER_R - 14);
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(0,0,36,5);
-  ctx.fillStyle = '#e0413a';
-  ctx.fillRect(0,0,36*clamp(p.hp/p.maxHp,0,1),5);
-  ctx.restore();
-
-  if(!p.isHuman){
-    ctx.font = '10px Arial';
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.textAlign='center';
-    ctx.fillText(p.name, p.x, p.y+PLAYER_R+13);
-  }
-}
-
-function drawBall(){
-  ctx.beginPath();
-  ctx.arc(ball.x,ball.y,BALL_R,0,Math.PI*2);
-  ctx.fillStyle = '#f5f0e0';
-  ctx.fill();
-  ctx.lineWidth=1.5;
-  ctx.strokeStyle = '#2b2b2b';
-  ctx.stroke();
-  // pentagon pattern hint
-  ctx.beginPath();
-  ctx.moveTo(ball.x, ball.y-3);
-  ctx.lineTo(ball.x+3, ball.y+2);
-  ctx.lineTo(ball.x-3, ball.y+2);
-  ctx.closePath();
-  ctx.fillStyle='#2b2b2b';
-  ctx.fill();
-}
-
-function drawItem(it){
-  ctx.save();
-  ctx.translate(it.x,it.y);
-  ctx.beginPath();
-  ctx.arc(0,0,17,0,Math.PI*2);
-  ctx.fillStyle = 'rgba(0,0,0,0.45)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(242,193,78,0.7)';
-  ctx.lineWidth=2;
-  ctx.stroke();
-  ctx.font = '18px Arial';
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(ITEM_ICON[it.type], 0, 1);
-  ctx.restore();
-}
-
-function render(){
-  drawField();
-  fieldItems.forEach(drawItem);
-  bullets.forEach(b=>{
-    ctx.beginPath(); ctx.arc(b.x,b.y,4,0,Math.PI*2);
-    ctx.fillStyle = '#ffe082'; ctx.fill();
-  });
-  thrown.forEach(b=>{
-    ctx.beginPath(); ctx.arc(b.x,b.y,7,0,Math.PI*2);
-    ctx.fillStyle = 'rgba(200,200,255,0.85)'; ctx.fill();
-  });
-  entities.forEach(drawPlayer);
-  drawBall();
-
-  const t = now();
-  floatTexts = floatTexts.filter(f=> t-f.born < 0.9);
-  floatTexts.forEach(f=>{
-    const p = (t-f.born)/0.9;
-    ctx.globalAlpha = 1-p;
-    ctx.fillStyle = f.color;
-    ctx.font = 'bold 15px Arial';
-    ctx.textAlign='center';
-    ctx.fillText(f.txt, f.x, f.y - p*22);
-    ctx.globalAlpha = 1;
-  });
-
-  if(goalFreezeUntil>t){
-    ctx.fillStyle='rgba(0,0,0,0.15)';
-    ctx.fillRect(0,0,CV_W,CV_H);
-  }
-}
-
-/* ============================================================
-   HUD 갱신
-============================================================ */
-function updateHUD(){
-  const mm = Math.floor(timeLeft/60);
-  const ss = Math.floor(timeLeft%60);
-  document.getElementById('timer').textContent = mm+":"+(ss<10?"0":"")+ss;
-
-  if(!human) return;
-  const t = now();
-  document.getElementById('hpTxt').textContent = Math.ceil(human.hp)+"/"+human.maxHp;
-  document.getElementById('hpBar').style.width = clamp(human.hp/human.maxHp*100,0,100)+"%";
-  document.getElementById('stTxt').textContent = Math.ceil(human.stamina);
-  document.getElementById('stBar').style.width = clamp(human.stamina/human.maxStamina*100,0,100)+"%";
-
-  const cdT = document.getElementById('cdTackle');
-  const readyT = t>=human.tackleCdUntil;
-  cdT.textContent = readyT ? "태클 준비" : "태클 " + Math.max(0,(human.tackleCdUntil-t)).toFixed(1)+"s";
-  cdT.classList.toggle('ready', readyT);
-
-  const cdD = document.getElementById('cdDribble');
-  const readyD = t>=human.dribbleCdUntil;
-  cdD.textContent = readyD ? "드리블 준비" : "드리블 " + Math.max(0,(human.dribbleCdUntil-t)).toFixed(1)+"s";
-  cdD.classList.toggle('ready', readyD);
-
-  for(let i=0;i<3;i++){
-    const s = human.items[i];
-    document.getElementById('slot'+i).textContent = s ? ITEM_ICON[s.type] : "-";
-    document.getElementById('ammo'+i).textContent = (s && s.type==='gun') ? s.ammo : "";
-  }
-
-  blindOverlay.style.opacity = human.fx.blindUntil>t ? "1" : "0";
-}
-
-/* 초기 정적 화면 */
-drawField();
-
+  setInterval(function(){if(ps>0){h+=ps/10;render()}},100);
+  $('reset').onclick=function(){h=START;pc=1;ps=0;shopLv={};render()};
+  window.addEventListener('resize',render);
+  buildShop();render();
 })();
 </script>
 </body>
